@@ -8,8 +8,8 @@
     "start": "electron .",
     "test": "node --test \"test/*.test.js\"",
     "dist": "electron-builder",
-    "dist:win": "electron-builder --win",
-    "dist:mac": "electron-builder --mac"
+    "dist:win": "electron-builder --win --publish never",
+    "dist:mac": "electron-builder --mac --publish never"
   },
   "build": {
     "appId": "com.homeworkgoals.app",
@@ -17,7 +17,7 @@
     "files": ["src/**/*", "package.json"],
     "win": { "target": "nsis" },
     "mac": { "target": "dmg", "category": "public.app-category.education" },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "artifactName": "homework-goals-setup-${version}.exe" }
   },
   "devDependencies": {
     "electron": "33.2.1",
