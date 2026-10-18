@@ -3,7 +3,7 @@ const path = require("path");
 const fs = require("fs");
 
 const DATA_FILE = () => path.join(app.getPath("userData"), "data.json");
-const EMPTY = { homework: [], goals: [], settings: { theme: "dark", widgetOpen: false, widgetOnTop: true } };
+const EMPTY = { homework: [], goals: [], notes: [], memos: {}, settings: { theme: "dark", widgetOpen: false, widgetOnTop: true } };
 
 let data = null;
 let mainWin = null;

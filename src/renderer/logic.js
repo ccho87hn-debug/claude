@@ -32,6 +32,47 @@
     return `${d.getMonth() + 1}월 ${d.getDate()}일 ${DOW[d.getDay()]}요일`;
   }
 
+  // ----- week -----
+  // Weeks run Monday to Sunday, as on a Korean school timetable.
+  function weekStart(date) {
+    const d = parse(date);
+    const back = (d.getDay() + 6) % 7;
+    d.setDate(d.getDate() - back);
+    return ymd(d);
+  }
+  const weekDays = (start) => Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  const dayDiff = (from, to) => Math.round((parse(to) - parse(from)) / 86400000);
+
+  function dday(date, today) {
+    const n = dayDiff(today, date);
+    return n === 0 ? "D-day" : n > 0 ? `D-${n}` : `D+${-n}`;
+  }
+
+  // Cautions: tests, supplies, deadlines. Upcoming = not done and within `days` from today.
+  const NOTE_KINDS = { test: "시험", supply: "준비물", due: "마감", etc: "기타" };
+  function upcomingNotes(data, today, days = 7) {
+    return (data.notes || [])
+      .filter((n) => !n.done && dayDiff(today, n.date) >= 0 && dayDiff(today, n.date) <= days)
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  // Weekly memo markup: "# 제목", "- 목록", "! 중요", "[ ] 할 일", "[x] 한 일".
+  function memoBlocks(text) {
+    const blocks = [];
+    for (const raw of String(text || "").split("\n")) {
+      const line = raw.trimEnd();
+      if (!line.trim()) { blocks.push({ type: "gap" }); continue; }
+      let m;
+      if ((m = line.match(/^#\s+(.*)/))) blocks.push({ type: "heading", text: m[1] });
+      else if ((m = line.match(/^!\s*(.*)/))) blocks.push({ type: "important", text: m[1] });
+      else if ((m = line.match(/^\[( |x|X)\]\s*(.*)/))) blocks.push({ type: "task", done: m[1] !== " ", text: m[2] });
+      else if ((m = line.match(/^[-*]\s+(.*)/))) blocks.push({ type: "item", text: m[1] });
+      else blocks.push({ type: "text", text: line });
+    }
+    while (blocks.length && blocks[blocks.length - 1].type === "gap") blocks.pop();
+    return blocks;
+  }
+
   // ----- goals -----
   // A goal is either "count" (progress goes up with +1) or "daily" (one check per day).
   const goalProgress = (g) => (g.type === "daily" ? (g.checks || []).length : g.progress || 0);
@@ -178,8 +219,17 @@
     homework.push({ id: uid(), date: today, subject: "국어", title: "독서록 한 편 쓰기", done: false });
     const checks = [];
     for (let d = 1; d < todayN; d++) if (d % 4 !== 0) checks.push(`${m}-${pad(d)}`);
+    const ws = weekStart(today);
     return {
       homework,
+      notes: [
+        { id: uid(), date: addDays(today, 2), kind: "test", text: "수학 단원평가 (3단원 분수)", done: false },
+        { id: uid(), date: addDays(today, 1), kind: "supply", text: "색종이, 풀 (미술)", done: false },
+        { id: uid(), date: addDays(today, 4), kind: "due", text: "과학 탐구 보고서 제출", done: false },
+      ],
+      memos: {
+        [ws]: "# 이번 주 목표\n- 수학 3단원 다시 풀어보기\n- 영어 단어 매일 20개\n! 목요일 수학 시험 범위 확인하기\n[x] 독서록 공책 사기\n[ ] 체육복 챙기기",
+      },
       goals: [
         { id: uid(), month: m, type: "count", title: "책 읽기", target: 4, unit: "권", progress: 2 },
         { id: uid(), month: m, type: "daily", title: "줄넘기 100번", target: 20, unit: "일", checks },
@@ -190,6 +240,7 @@
 
   return {
     pad, ymd, ym, parse, addDays, addMonths, daysInMonth, DOW, uid, fmtDay,
+    weekStart, weekDays, dayDiff, dday, NOTE_KINDS, upcomingNotes, memoBlocks,
     goalProgress, goalRatio, goalStatus, monthSummary, dayStats, subjectStats, streaks, badges, sampleData,
   };
 });

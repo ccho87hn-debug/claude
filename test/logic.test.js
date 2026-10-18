@@ -48,3 +48,26 @@ test("sample data earns some badges", () => {
   assert.ok(earned.includes("first"));
   assert.ok(earned.includes("goal1"));
 });
+
+test("weeks start on Monday", () => {
+  assert.strictEqual(L.weekStart("2026-10-18"), "2026-10-12"); // Sunday
+  assert.strictEqual(L.weekStart("2026-10-19"), "2026-10-19"); // Monday
+  assert.strictEqual(L.weekDays("2026-10-26")[6], "2026-11-01");
+});
+
+test("d-day labels and upcoming cautions", () => {
+  assert.strictEqual(L.dday("2026-10-20", "2026-10-18"), "D-2");
+  assert.strictEqual(L.dday("2026-10-18", "2026-10-18"), "D-day");
+  const data = { notes: [
+    { id: 1, date: "2026-10-30", done: false }, { id: 2, date: "2026-10-19", done: false },
+    { id: 3, date: "2026-10-20", done: true }, { id: 4, date: "2026-10-17", done: false },
+  ] };
+  assert.deepStrictEqual(L.upcomingNotes(data, "2026-10-18").map((n) => n.id), [2]);
+});
+
+test("memo markup is split into blocks", () => {
+  const b = L.memoBlocks("# 제목\n- 하나\n! 중요\n[x] 완료\n[ ] 미완료\n그냥 글\n\n");
+  assert.deepStrictEqual(b.map((x) => x.type), ["heading", "item", "important", "task", "task", "text"]);
+  assert.strictEqual(b[3].done, true);
+  assert.strictEqual(b[4].done, false);
+});
