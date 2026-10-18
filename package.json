@@ -1,0 +1,26 @@
+{
+  "name": "homework-goals",
+  "productName": "숙제 & 목표",
+  "version": "1.0.0",
+  "description": "오늘의 숙제와 이번 달 목표 달성률을 관리하는 PC 앱",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test \"test/*.test.js\"",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win",
+    "dist:mac": "electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.homeworkgoals.app",
+    "productName": "숙제 & 목표",
+    "files": ["src/**/*", "package.json"],
+    "win": { "target": "nsis" },
+    "mac": { "target": "dmg", "category": "public.app-category.education" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  }
+}

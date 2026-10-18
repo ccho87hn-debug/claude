@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>숙제 위젯</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="widget">
+  <div class="w">
+    <div class="w-head">
+      <span class="label" id="wDate"></span>
+      <span>
+        <button class="icon-btn" type="button" id="wOpen" title="앱 열기" aria-label="앱 열기">↗</button>
+        <button class="icon-btn" type="button" id="wClose" title="위젯 닫기" aria-label="위젯 닫기">✕</button>
+      </span>
+    </div>
+    <div class="w-sum">
+      <svg class="ring" width="64" height="64" viewBox="0 0 100 100" role="img" aria-label="오늘 완료율">
+        <circle class="bg" cx="50" cy="50" r="42" stroke-width="12"></circle>
+        <circle class="fg" id="wRing" cx="50" cy="50" r="42" stroke-width="12" transform="rotate(-90 50 50)" stroke-dasharray="263.9" stroke-dashoffset="263.9"></circle>
+        <text x="50" y="50" font-size="24" id="wRingText">–</text>
+      </svg>
+      <div>
+        <strong id="wCount">오늘의 숙제</strong><br>
+        <span class="muted" id="wLeft"></span>
+      </div>
+    </div>
+    <ul class="list w-list" id="wList"></ul>
+    <div class="w-foot">
+      <div><span class="label">이번 달 목표</span><span class="v" id="wGoal">–</span></div>
+      <div><span class="label">연속 달성</span><span class="v flame" id="wStreak">0일</span></div>
+    </div>
+  </div>
+  <script src="logic.js"></script>
+  <script src="widget.js"></script>
+</body>
+</html>

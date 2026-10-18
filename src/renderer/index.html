@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ko" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <title>숙제 &amp; 목표</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="side">
+      <div class="brand">
+        <strong>숙제 &amp; 목표</strong>
+        <span class="label" id="todayLabel"></span>
+      </div>
+      <nav class="nav" aria-label="메뉴">
+        <button type="button" data-view="today" aria-current="page"><span aria-hidden="true">☑</span>오늘의 숙제</button>
+        <button type="button" data-view="goals"><span aria-hidden="true">◎</span>이번 달 목표</button>
+        <button type="button" data-view="stats"><span aria-hidden="true">▤</span>과목별 통계</button>
+        <button type="button" data-view="badges"><span aria-hidden="true">★</span>배지</button>
+      </nav>
+      <div class="side-foot">
+        <div class="streak-card">
+          <span class="label">연속 달성</span>
+          <div><span class="big flame" id="sideStreak">0</span> <span class="muted">일</span></div>
+          <span class="label" id="sideBest">최고 기록 0일</span>
+        </div>
+        <button class="btn" type="button" id="widgetToggle">위젯 열기</button>
+        <button class="btn" type="button" id="themeToggle">밝은 화면으로</button>
+      </div>
+    </aside>
+
+    <main>
+      <!-- 오늘의 숙제 -->
+      <section class="view" id="view-today">
+        <div class="view-head">
+          <h1 id="dayTitle">오늘의 숙제</h1>
+          <div class="stepper">
+            <button class="btn small" type="button" id="prevDay" aria-label="이전 날">‹</button>
+            <button class="btn small" type="button" id="goToday">오늘</button>
+            <button class="btn small" type="button" id="nextDay" aria-label="다음 날">›</button>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="panel">
+            <div class="summary">
+              <svg class="ring" width="104" height="104" viewBox="0 0 100 100" role="img" aria-label="오늘 완료율">
+                <circle class="bg" cx="50" cy="50" r="42" stroke-width="10"></circle>
+                <circle class="fg" id="ringFg" cx="50" cy="50" r="42" stroke-width="10" transform="rotate(-90 50 50)" stroke-dasharray="263.9" stroke-dashoffset="263.9"></circle>
+                <text x="50" y="50" font-size="22" id="ringText">–</text>
+              </svg>
+              <div>
+                <strong id="hwCount">0 / 0 완료</strong>
+                <span class="muted" id="hwHint"></span>
+              </div>
+            </div>
+            <form class="add" id="hwForm" autocomplete="off">
+              <input class="narrow" id="hwSubject" placeholder="과목" maxlength="12" list="subjectList" aria-label="과목">
+              <datalist id="subjectList"></datalist>
+              <input class="grow" id="hwInput" placeholder="숙제 추가 (예: 수학 익힘책 24~26쪽)" maxlength="80" aria-label="숙제 내용" required>
+              <button class="btn primary" type="submit">추가</button>
+            </form>
+            <ul class="list" id="hwList"></ul>
+          </div>
+          <div class="panel">
+            <h2>이번 달 한눈에</h2>
+            <div class="summary">
+              <svg class="ring" width="84" height="84" viewBox="0 0 100 100" role="img" aria-label="이번 달 목표 달성률">
+                <circle class="bg" cx="50" cy="50" r="42" stroke-width="10"></circle>
+                <circle class="fg" id="mRingFg" cx="50" cy="50" r="42" stroke-width="10" transform="rotate(-90 50 50)" stroke-dasharray="263.9" stroke-dashoffset="263.9"></circle>
+                <text x="50" y="50" font-size="22" id="mRingText">–</text>
+              </svg>
+              <div>
+                <strong id="mGoalsLine">목표 0개</strong>
+                <span class="muted" id="mHwLine"></span>
+              </div>
+            </div>
+            <div id="miniGoals"></div>
+            <button class="btn" type="button" data-view="goals">목표 관리하기</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 이번 달 목표 -->
+      <section class="view" id="view-goals" hidden>
+        <div class="view-head">
+          <h1 id="monthTitle">이번 달 목표</h1>
+          <div class="stepper">
+            <button class="btn small" type="button" data-month-step="-1" aria-label="이전 달">‹</button>
+            <span class="num" data-month-label></span>
+            <button class="btn small" type="button" data-month-step="1" aria-label="다음 달">›</button>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat"><span class="label">목표 달성률</span><span class="v" id="goalRate">–</span></div>
+          <div class="stat"><span class="label">완료한 목표</span><span class="v" id="goalDone">0/0</span></div>
+          <div class="stat"><span class="label">숙제 완료율</span><span class="v" id="hwMonthRate">–</span></div>
+          <div class="stat"><span class="label">완벽한 날</span><span class="v" id="perfectDays">0</span></div>
+        </div>
+        <div class="grid-2">
+          <div class="panel">
+            <form class="add" id="goalForm" autocomplete="off">
+              <input class="grow" id="goalInput" placeholder="목표 (예: 책 읽기)" maxlength="40" aria-label="목표 이름" required>
+              <select id="goalType" aria-label="기록 방식">
+                <option value="count">횟수 세기</option>
+                <option value="daily">매일 체크</option>
+              </select>
+              <input class="narrow" id="goalTarget" type="number" min="1" max="9999" value="10" aria-label="목표 수">
+              <input class="narrow" id="goalUnit" placeholder="단위 (권, 회)" maxlength="6" aria-label="단위">
+              <button class="btn primary" type="submit">추가</button>
+            </form>
+            <p class="label" id="goalTypeHelp">횟수 세기: +1 버튼으로 할 때마다 올려요.</p>
+            <div id="goalList"></div>
+          </div>
+          <div class="panel">
+            <div class="view-head">
+              <h2>날짜별 숙제 완료</h2>
+              <span class="legend"><i></i>없음 <i style="background:color-mix(in srgb,var(--accent) 22%,var(--bg))"></i>일부 <i style="background:color-mix(in srgb,var(--accent) 50%,var(--bg))"></i>절반 이상 <i style="background:var(--accent)"></i>전부</span>
+            </div>
+            <div class="cal" id="cal"></div>
+            <span class="label">날짜를 누르면 그날 숙제로 이동해요.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 과목별 통계 -->
+      <section class="view" id="view-stats" hidden>
+        <div class="view-head">
+          <h1>과목별 통계</h1>
+          <div class="stepper">
+            <button class="btn small" type="button" data-month-step="-1" aria-label="이전 달">‹</button>
+            <span class="num" data-month-label></span>
+            <button class="btn small" type="button" data-month-step="1" aria-label="다음 달">›</button>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="panel">
+            <h2>과목별 완료율</h2>
+            <div id="subjList"></div>
+          </div>
+          <div class="panel">
+            <h2>한마디</h2>
+            <p id="subjInsight" class="muted" style="margin:0"></p>
+          </div>
+        </div>
+        <div class="panel chart">
+          <div class="view-head"><h2>최근 14일 완료한 숙제</h2><span class="legend"><i style="background:var(--flame)"></i>오늘</span></div>
+          <div id="chart14"></div>
+        </div>
+      </section>
+
+      <!-- 배지 -->
+      <section class="view" id="view-badges" hidden>
+        <div class="view-head">
+          <h1>배지</h1>
+          <span class="muted" id="badgeCount"></span>
+        </div>
+        <div class="stats">
+          <div class="stat"><span class="label">지금 연속</span><span class="v flame" id="bStreak">0일</span></div>
+          <div class="stat"><span class="label">최고 연속</span><span class="v" id="bBest">0일</span></div>
+          <div class="stat"><span class="label">완벽한 날 (전체)</span><span class="v" id="bPerfect">0일</span></div>
+          <div class="stat"><span class="label">끝낸 숙제 (전체)</span><span class="v" id="bHwDone">0개</span></div>
+        </div>
+        <p class="label" style="margin:0">숙제가 있는 날에 전부 끝내면 연속 기록이 이어져요. 숙제가 없는 날은 기록이 끊기지 않아요.</p>
+        <div class="badges" id="badgeGrid"></div>
+      </section>
+    </main>
+  </div>
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="logic.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
