@@ -1,0 +1,472 @@
+<title>숙제 &amp; 목표 노트</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: a notebook page on graph paper — today's homework on the left, the month's goals and calendar on the right; one column on phones. */
+:root {
+  --paper: #fbfcfe;
+  --grid: #e3e9f3;
+  --ink: #1d2b45;
+  --muted: #66738c;
+  --line: #d4dbe8;
+  --card: #ffffff;
+  --accent: #2346c9;       /* ballpoint blue */
+  --accent-soft: #e6ecfc;
+  --marker: #ffe066;       /* highlighter */
+  --good: #1f8a5b;
+  --warn: #c27a00;
+  --danger: #c23a3a;
+  --font-display: "Jua", "IBM Plex Sans KR", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #121826; --grid: #1b2335; --ink: #e6ebf5; --muted: #95a1b8; --line: #2a3550;
+    --card: #182033; --accent: #8aa4ff; --accent-soft: #233056; --marker: #c9a52a;
+    --good: #4cc48e; --warn: #e3a63a; --danger: #ef7676; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #121826; --grid: #1b2335; --ink: #e6ebf5; --muted: #95a1b8; --line: #2a3550;
+  --card: #182033; --accent: #8aa4ff; --accent-soft: #233056; --marker: #c9a52a;
+  --good: #4cc48e; --warn: #e3a63a; --danger: #ef7676; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 48px;
+}
+.wrap { max-width: 1080px; margin: 0 auto; display: grid; gap: 20px; }
+header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: 2rem; margin: 0; line-height: 1.1; text-wrap: balance; }
+h1 .hl { background: linear-gradient(transparent 55%, var(--marker) 55%); padding: 0 2px; }
+.sub { color: var(--muted); margin: 4px 0 0; }
+h2 { font-family: var(--font-display); font-weight: 400; font-size: 1.35rem; margin: 0; }
+.label { font-size: .75rem; letter-spacing: .06em; color: var(--muted); font-weight: 500; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+.banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
+  background: var(--accent-soft); border: 1px dashed var(--accent); border-radius: 10px; padding: 10px 14px; }
+.banner p { margin: 0; }
+
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 20px; align-items: start; }
+@media (max-width: 820px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+
+.sheet { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; display: grid; gap: 16px; min-width: 0; }
+.sheet-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.summary { display: flex; align-items: center; gap: 18px; }
+.ring { width: 96px; height: 96px; flex: none; }
+.ring circle { fill: none; stroke-width: 10; }
+.ring .bg { stroke: var(--grid); }
+.ring .fg { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset .5s ease; }
+.ring text { fill: var(--ink); font-family: var(--font-num); font-size: 22px; text-anchor: middle; dominant-baseline: central; }
+.summary-text strong { font-size: 1.1rem; display: block; }
+
+.daynav { display: flex; align-items: center; gap: 6px; }
+button { font: inherit; color: inherit; cursor: pointer; }
+.btn { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 6px 12px; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--card); font-weight: 500; }
+.btn.small { padding: 3px 9px; font-size: .85rem; }
+.icon-btn { border: none; background: none; color: var(--muted); padding: 4px 6px; border-radius: 6px; line-height: 1; }
+.icon-btn:hover { color: var(--danger); background: var(--grid); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+form.add { display: flex; flex-wrap: wrap; gap: 8px; }
+input, select { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; min-width: 0; }
+input:focus { border-color: var(--accent); outline: none; }
+form.add .grow { flex: 1 1 160px; }
+form.add .narrow { flex: 0 1 110px; }
+
+ul.list { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.hw { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 6px; border-bottom: 1px solid var(--grid); }
+.hw input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent); margin: 0; }
+.hw .title { overflow-wrap: anywhere; }
+.hw.done .title { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--accent); }
+.chip { font-size: .75rem; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+.empty { color: var(--muted); padding: 12px 6px; margin: 0; }
+
+.month-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.stat { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--paper); }
+.stat .v { font-family: var(--font-num); font-size: 1.5rem; display: block; line-height: 1.2; }
+@media (max-width: 420px) { .stat .v { font-size: 1.2rem; } }
+
+.goal { display: grid; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--grid); }
+.goal-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.goal-name { font-weight: 500; overflow-wrap: anywhere; min-width: 0; }
+.goal-ctrl { display: flex; align-items: center; gap: 4px; flex: none; }
+.bar { height: 10px; background: var(--grid); border-radius: 999px; overflow: hidden; }
+.bar > span { display: block; height: 100%; background: var(--accent); border-radius: 999px; transition: width .4s ease; }
+.goal.complete .bar > span { background: var(--good); }
+.goal-meta { display: flex; justify-content: space-between; font-size: .85rem; color: var(--muted); }
+.pill { font-size: .75rem; padding: 1px 8px; border-radius: 999px; border: 1px solid currentColor; }
+.pill.good { color: var(--good); } .pill.warn { color: var(--warn); } .pill.behind { color: var(--danger); }
+
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.cal .dow { font-size: .72rem; color: var(--muted); text-align: center; }
+.cal button { aspect-ratio: 1; max-width: 100%; border: 1px solid var(--line); border-radius: 6px; background: var(--paper);
+  font-family: var(--font-num); font-size: .8rem; display: grid; place-items: center; padding: 0; position: relative; }
+.cal button.l1 { background: color-mix(in srgb, var(--accent) 25%, var(--paper)); }
+.cal button.l2 { background: color-mix(in srgb, var(--accent) 55%, var(--paper)); color: var(--card); }
+.cal button.l3 { background: var(--accent); color: var(--card); }
+.cal button.today { outline: 2px solid var(--marker); outline-offset: 1px; }
+.cal button.sel { border: 2px solid var(--ink); }
+.legend { display: flex; align-items: center; gap: 6px; font-size: .75rem; color: var(--muted); flex-wrap: wrap; }
+.legend i { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--line); display: inline-block; }
+
+.foot { color: var(--muted); font-size: .8rem; text-align: center; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1><span class="hl">숙제 &amp; 목표</span> 노트</h1>
+      <p class="sub" id="todayLabel"></p>
+    </div>
+    <span class="label" id="saveState">저장 준비 중…</span>
+  </header>
+
+  <div class="banner" id="sampleBanner" hidden>
+    <p>지금 보이는 숙제와 목표는 <strong>예시</strong>입니다. 그대로 고쳐 써도 되고, 비우고 새로 시작해도 됩니다.</p>
+    <button class="btn small" id="clearSample" type="button">예시 지우고 시작하기</button>
+  </div>
+
+  <div class="cols">
+    <!-- Homework for the selected day -->
+    <section class="sheet" aria-labelledby="hwTitle">
+      <div class="sheet-head">
+        <h2 id="hwTitle">오늘의 숙제</h2>
+        <div class="daynav">
+          <button class="btn small" id="prevDay" type="button" aria-label="이전 날">‹</button>
+          <button class="btn small" id="goToday" type="button">오늘</button>
+          <button class="btn small" id="nextDay" type="button" aria-label="다음 날">›</button>
+        </div>
+      </div>
+
+      <div class="summary">
+        <svg class="ring" viewBox="0 0 100 100" role="img" aria-labelledby="ringText">
+          <circle class="bg" cx="50" cy="50" r="42"></circle>
+          <circle class="fg" id="ringFg" cx="50" cy="50" r="42" transform="rotate(-90 50 50)"
+            stroke-dasharray="263.9" stroke-dashoffset="263.9"></circle>
+          <text x="50" y="50" id="ringText">0%</text>
+        </svg>
+        <div class="summary-text">
+          <strong id="hwCount">0 / 0 완료</strong>
+          <span class="sub" id="hwHint"></span>
+        </div>
+      </div>
+
+      <form class="add" id="hwForm" autocomplete="off">
+        <input class="narrow" id="hwSubject" placeholder="과목" maxlength="12" aria-label="과목">
+        <input class="grow" id="hwInput" placeholder="숙제 추가 (예: 수학 익힘책 24~26쪽)" maxlength="80" aria-label="숙제 내용" required>
+        <button class="btn primary" type="submit">추가</button>
+      </form>
+
+      <ul class="list" id="hwList"></ul>
+    </section>
+
+    <!-- Month goals -->
+    <section class="sheet" aria-labelledby="monthTitle">
+      <div class="sheet-head">
+        <h2 id="monthTitle">이번 달 목표</h2>
+        <div class="daynav">
+          <button class="btn small" id="prevMonth" type="button" aria-label="이전 달">‹</button>
+          <span class="num" id="monthLabel"></span>
+          <button class="btn small" id="nextMonth" type="button" aria-label="다음 달">›</button>
+        </div>
+      </div>
+
+      <div class="month-stats">
+        <div class="stat"><span class="label">목표 달성률</span><span class="v" id="goalRate">0%</span></div>
+        <div class="stat"><span class="label">완료한 목표</span><span class="v" id="goalDone">0/0</span></div>
+        <div class="stat"><span class="label">숙제 완료율</span><span class="v" id="hwMonthRate">–</span></div>
+      </div>
+
+      <form class="add" id="goalForm" autocomplete="off">
+        <input class="grow" id="goalInput" placeholder="목표 (예: 책 읽기)" maxlength="40" aria-label="목표 이름" required>
+        <input class="narrow" id="goalTarget" type="number" min="1" max="9999" value="10" aria-label="목표 횟수">
+        <input class="narrow" id="goalUnit" placeholder="단위 (권, 회…)" maxlength="6" aria-label="단위">
+        <button class="btn primary" type="submit">추가</button>
+      </form>
+
+      <div id="goalList"></div>
+
+      <div>
+        <div class="sheet-head" style="margin-bottom:8px">
+          <span class="label">날짜별 숙제 완료 · 날짜를 누르면 그날 숙제로 이동</span>
+          <span class="legend"><i></i>없음<i class="l1" style="background:color-mix(in srgb,var(--accent) 25%,var(--paper))"></i>일부<i style="background:color-mix(in srgb,var(--accent) 55%,var(--paper))"></i>대부분<i style="background:var(--accent)"></i>전부</span>
+        </div>
+        <div class="cal" id="cal"></div>
+      </div>
+    </section>
+  </div>
+
+  <p class="foot" id="footNote"></p>
+</div>
+
+<script>
+(() => {
+  // ---------- date helpers ----------
+  const pad = n => String(n).padStart(2, "0");
+  const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const ym = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+  const parse = s => { const [y, m, d] = s.split("-").map(Number); return new Date(y, m - 1, d || 1); };
+  const addDays = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return ymd(d); };
+  const addMonths = (s, n) => { const d = parse(s + "-01"); d.setMonth(d.getMonth() + n); return ym(d); };
+  const DOW = ["일", "월", "화", "수", "목", "금", "토"];
+  const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+
+  const TODAY = ymd(new Date());
+  let selDay = TODAY;
+  let selMonth = TODAY.slice(0, 7);
+
+  // ---------- sample data (shown until the user starts) ----------
+  function sampleState() {
+    const m = TODAY.slice(0, 7);
+    const hw = [];
+    const subjects = [["국어", "받아쓰기 연습"], ["수학", "익힘책 풀기"], ["영어", "단어 20개 외우기"], ["과학", "실험 보고서"]];
+    const todayN = Number(TODAY.slice(8));
+    for (let d = 1; d < todayN; d++) {
+      const day = `${m}-${pad(d)}`;
+      const n = 1 + (d % 3);
+      for (let i = 0; i < n; i++) {
+        const [s, t] = subjects[(d + i) % subjects.length];
+        hw.push({ id: uid(), date: day, subject: s, title: t, done: (d * 7 + i * 3) % 5 !== 0 });
+      }
+    }
+    hw.push({ id: uid(), date: TODAY, subject: "수학", title: "익힘책 24~26쪽", done: true });
+    hw.push({ id: uid(), date: TODAY, subject: "영어", title: "Unit 5 단어 외우기", done: false });
+    hw.push({ id: uid(), date: TODAY, subject: "국어", title: "독서록 한 편 쓰기", done: false });
+    return {
+      sample: true,
+      homework: hw,
+      goals: [
+        { id: uid(), month: m, title: "책 읽기", target: 4, unit: "권", progress: 2 },
+        { id: uid(), month: m, title: "줄넘기 하기", target: 20, unit: "일", progress: 14 },
+        { id: uid(), month: m, title: "영어 일기", target: 8, unit: "편", progress: 8 },
+      ],
+    };
+  }
+
+  let state = { homework: [], goals: [] };
+
+  // ---------- storage: account db when available, browser storage otherwise ----------
+  const LS_KEY = "homework-goals-v1";
+  const saveLabel = document.getElementById("saveState");
+  let dbRef = null;
+  let writing = Promise.resolve();
+  let pendingTimer = null;
+
+  function lsGet() { try { const s = localStorage.getItem(LS_KEY); return s ? JSON.parse(s) : null; } catch { return null; } }
+  function lsSet(v) { try { localStorage.setItem(LS_KEY, JSON.stringify(v)); return true; } catch { return false; } }
+
+  function persist() {
+    state.sample = false;
+    document.getElementById("sampleBanner").hidden = true;
+    clearTimeout(pendingTimer);
+    saveLabel.textContent = "저장 중…";
+    pendingTimer = setTimeout(() => {
+      const snapshot = JSON.parse(JSON.stringify(state));
+      const okLocal = lsSet(snapshot);
+      if (!dbRef) { saveLabel.textContent = okLocal ? "이 기기에 저장됨" : "저장할 수 없음 (브라우저 저장소 꺼짐)"; return; }
+      writing = writing.then(() => dbRef.set(snapshot))
+        .then(() => { saveLabel.textContent = "계정에 저장됨"; })
+        .catch(() => { saveLabel.textContent = okLocal ? "이 기기에만 저장됨" : "저장 실패 · 다시 시도해 주세요"; });
+    }, 400);
+  }
+
+  async function connectDb() {
+    const claude = window.claude;
+    if (!claude || !claude.use) return false;
+    try {
+      const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
+      if (!db || !user) return false;
+      const id = await user.id();
+      if (!id) return false;
+      dbRef = db.doc("data/users/" + id + "/state");
+      const snap = await dbRef.get();
+      if (snap.exists) {
+        const d = snap.data();
+        state = { homework: [...(d.homework || [])].map(x => ({ ...x })), goals: [...(d.goals || [])].map(x => ({ ...x })), sample: false };
+      } else {
+        const local = lsGet();
+        if (local && !local.sample) { state = local; persist(); }
+      }
+      return true;
+    } catch { dbRef = null; return false; }
+  }
+
+  // ---------- rendering ----------
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function fmtDay(s) {
+    const d = parse(s);
+    return `${d.getMonth() + 1}월 ${d.getDate()}일 ${DOW[d.getDay()]}요일`;
+  }
+
+  function renderHomework() {
+    const items = state.homework.filter(h => h.date === selDay);
+    const done = items.filter(h => h.done).length;
+    const pct = items.length ? Math.round(done / items.length * 100) : 0;
+    $("hwTitle").textContent = selDay === TODAY ? "오늘의 숙제" : fmtDay(selDay) + " 숙제";
+    $("ringFg").setAttribute("stroke-dashoffset", (263.9 * (1 - pct / 100)).toFixed(1));
+    $("ringText").textContent = items.length ? pct + "%" : "–";
+    $("hwCount").textContent = `${done} / ${items.length} 완료`;
+    const left = items.length - done;
+    $("hwHint").textContent = !items.length ? "아직 등록한 숙제가 없어요." : left === 0 ? "다 끝냈어요! 수고했어요." : `남은 숙제 ${left}개`;
+    $("hwList").innerHTML = items.length ? items.map(h => `
+      <li class="hw${h.done ? " done" : ""}" data-id="${h.id}">
+        <input type="checkbox" id="hw-${h.id}" ${h.done ? "checked" : ""} aria-label="${esc(h.title)} 완료">
+        ${h.subject ? `<span class="chip">${esc(h.subject)}</span>` : "<span></span>"}
+        <label class="title" for="hw-${h.id}">${esc(h.title)}</label>
+        <button class="icon-btn" type="button" data-del aria-label="삭제">✕</button>
+      </li>`).join("") : `<li class="empty">위 입력칸에 숙제를 적고 ‘추가’를 눌러 보세요.</li>`;
+  }
+
+  function goalStatus(g) {
+    if (g.progress >= g.target) return ["good", "달성"];
+    // Expected pace: how far through the month we are
+    const nowM = TODAY.slice(0, 7);
+    if (g.month < nowM) return ["behind", "미달성"];
+    if (g.month > nowM) return ["warn", "예정"];
+    const d = parse(TODAY);
+    const days = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    const expected = g.target * d.getDate() / days;
+    return g.progress >= expected ? ["good", "순조로움"] : g.progress >= expected * 0.6 ? ["warn", "조금 늦음"] : ["behind", "분발 필요"];
+  }
+
+  function renderMonth() {
+    const [y, m] = selMonth.split("-").map(Number);
+    $("monthLabel").textContent = `${y}년 ${m}월`;
+    $("monthTitle").textContent = selMonth === TODAY.slice(0, 7) ? "이번 달 목표" : `${m}월 목표`;
+
+    const goals = state.goals.filter(g => g.month === selMonth);
+    const rate = goals.length ? Math.round(goals.reduce((a, g) => a + Math.min(1, g.progress / g.target), 0) / goals.length * 100) : 0;
+    $("goalRate").textContent = goals.length ? rate + "%" : "–";
+    $("goalDone").textContent = `${goals.filter(g => g.progress >= g.target).length}/${goals.length}`;
+
+    const monthHw = state.homework.filter(h => h.date.startsWith(selMonth));
+    $("hwMonthRate").textContent = monthHw.length ? Math.round(monthHw.filter(h => h.done).length / monthHw.length * 100) + "%" : "–";
+
+    $("goalList").innerHTML = goals.length ? goals.map(g => {
+      const pct = Math.min(100, Math.round(g.progress / g.target * 100));
+      const [cls, txt] = goalStatus(g);
+      return `<div class="goal${g.progress >= g.target ? " complete" : ""}" data-id="${g.id}">
+        <div class="goal-top">
+          <span class="goal-name">${esc(g.title)}</span>
+          <span class="goal-ctrl">
+            <button class="btn small" type="button" data-step="-1" aria-label="${esc(g.title)} 하나 빼기">−</button>
+            <button class="btn small" type="button" data-step="1" aria-label="${esc(g.title)} 하나 더하기">+1</button>
+            <button class="icon-btn" type="button" data-del aria-label="목표 삭제">✕</button>
+          </span>
+        </div>
+        <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><span style="width:${pct}%"></span></div>
+        <div class="goal-meta"><span class="num">${g.progress} / ${g.target}${esc(g.unit || "")} · ${pct}%</span><span class="pill ${cls}">${txt}</span></div>
+      </div>`;
+    }).join("") : `<p class="empty">이번 달에 이루고 싶은 목표와 횟수를 적어 보세요.</p>`;
+
+    // calendar
+    const first = new Date(y, m - 1, 1);
+    const days = new Date(y, m, 0).getDate();
+    let html = DOW.map(d => `<span class="dow">${d}</span>`).join("");
+    for (let i = 0; i < first.getDay(); i++) html += "<span></span>";
+    for (let d = 1; d <= days; d++) {
+      const key = `${selMonth}-${pad(d)}`;
+      const items = state.homework.filter(h => h.date === key);
+      let lvl = "";
+      if (items.length) {
+        const r = items.filter(h => h.done).length / items.length;
+        lvl = r === 1 ? "l3" : r >= 0.5 ? "l2" : r > 0 ? "l1" : "";
+      }
+      const label = items.length ? `${m}월 ${d}일, 숙제 ${items.length}개 중 ${items.filter(h => h.done).length}개 완료` : `${m}월 ${d}일, 숙제 없음`;
+      html += `<button type="button" data-day="${key}" class="${lvl}${key === TODAY ? " today" : ""}${key === selDay ? " sel" : ""}" aria-label="${label}">${d}</button>`;
+    }
+    $("cal").innerHTML = html;
+  }
+
+  function render() {
+    $("todayLabel").textContent = "오늘은 " + fmtDay(TODAY);
+    $("sampleBanner").hidden = !state.sample;
+    renderHomework();
+    renderMonth();
+  }
+
+  // ---------- events ----------
+  $("hwForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const title = $("hwInput").value.trim();
+    if (!title) return;
+    state.homework.push({ id: uid(), date: selDay, subject: $("hwSubject").value.trim(), title, done: false });
+    $("hwInput").value = "";
+    $("hwInput").focus();
+    persist(); render();
+  });
+  $("hwList").addEventListener("change", e => {
+    const li = e.target.closest("li[data-id]"); if (!li) return;
+    const h = state.homework.find(x => x.id === li.dataset.id); if (!h) return;
+    h.done = e.target.checked; persist(); render();
+  });
+  $("hwList").addEventListener("click", e => {
+    if (!e.target.closest("[data-del]")) return;
+    const id = e.target.closest("li").dataset.id;
+    state.homework = state.homework.filter(x => x.id !== id); persist(); render();
+  });
+
+  $("goalForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const title = $("goalInput").value.trim();
+    const target = Math.max(1, Math.min(9999, parseInt($("goalTarget").value, 10) || 1));
+    if (!title) return;
+    state.goals.push({ id: uid(), month: selMonth, title, target, unit: $("goalUnit").value.trim(), progress: 0 });
+    $("goalInput").value = ""; $("goalUnit").value = "";
+    persist(); render();
+  });
+  $("goalList").addEventListener("click", e => {
+    const row = e.target.closest(".goal"); if (!row) return;
+    const g = state.goals.find(x => x.id === row.dataset.id); if (!g) return;
+    const step = e.target.closest("[data-step]");
+    if (step) { g.progress = Math.max(0, g.progress + Number(step.dataset.step)); persist(); render(); }
+    else if (e.target.closest("[data-del]")) { state.goals = state.goals.filter(x => x !== g); persist(); render(); }
+  });
+
+  $("cal").addEventListener("click", e => {
+    const b = e.target.closest("[data-day]"); if (!b) return;
+    selDay = b.dataset.day; render();
+  });
+  $("prevDay").onclick = () => { selDay = addDays(selDay, -1); selMonth = selDay.slice(0, 7); render(); };
+  $("nextDay").onclick = () => { selDay = addDays(selDay, 1); selMonth = selDay.slice(0, 7); render(); };
+  $("goToday").onclick = () => { selDay = TODAY; selMonth = TODAY.slice(0, 7); render(); };
+  $("prevMonth").onclick = () => { selMonth = addMonths(selMonth, -1); render(); };
+  $("nextMonth").onclick = () => { selMonth = addMonths(selMonth, 1); render(); };
+  $("clearSample").onclick = () => { state = { homework: [], goals: [] }; persist(); render(); };
+
+  // ---------- boot ----------
+  const local = lsGet();
+  state = local || sampleState();
+  render();
+  saveLabel.textContent = local ? "이 기기에 저장됨" : "예시 데이터";
+  $("footNote").textContent = "기록은 이 브라우저에 저장됩니다.";
+  connectDb().then(ok => {
+    if (!ok) return;
+    $("footNote").textContent = "기록은 내 계정에 저장되어 다른 기기에서도 이어서 볼 수 있어요. 다른 사람에게는 보이지 않아요.";
+    if (!state.sample) saveLabel.textContent = "계정에 저장됨";
+    render();
+  });
+})();
+</script>
