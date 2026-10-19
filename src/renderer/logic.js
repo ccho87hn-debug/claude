@@ -73,6 +73,64 @@
     return blocks;
   }
 
+  // ----- weekly planner (spreadsheet) -----
+  // A cell is one subject on one day. Its text lists that day's homework titles separated by ";".
+  const SEP = ";";
+  const splitCell = (text) => String(text || "").split(SEP).map((t) => t.trim()).filter(Boolean);
+  const cellItems = (data, date, subject) => data.homework.filter((h) => h.date === date && (h.subject || "") === subject);
+  const cellText = (data, date, subject) => cellItems(data, date, subject).map((h) => h.title).join(SEP + " ");
+
+  // Replace a cell's homework with the titles typed into it, keeping done state for titles that stay.
+  function applyCell(data, date, subject, text, makeId = uid) {
+    const old = cellItems(data, date, subject);
+    const titles = splitCell(text);
+    const pool = [...old];
+    const keep = [];
+    for (const title of titles) {
+      const i = pool.findIndex((h) => h.title === title);
+      if (i >= 0) keep.push(pool.splice(i, 1)[0]);
+      else keep.push({ id: makeId(), date, subject, title, done: false });
+    }
+    const removed = new Set(pool.map((h) => h.id));
+    const existing = new Set(old.map((h) => h.id));
+    data.homework = data.homework.filter((h) => !removed.has(h.id)).concat(keep.filter((h) => !existing.has(h.id)));
+    return { added: keep.length - (old.length - pool.length), removed: pool.length };
+  }
+
+  const noteCellText = (data, date) => (data.notes || []).filter((n) => n.date === date).map((n) => n.text).join(SEP + " ");
+  function applyNoteCell(data, date, text, makeId = uid) {
+    const old = (data.notes || []).filter((n) => n.date === date);
+    const pool = [...old];
+    const keep = [];
+    for (const t of splitCell(text)) {
+      const i = pool.findIndex((n) => n.text === t);
+      if (i >= 0) keep.push(pool.splice(i, 1)[0]);
+      else keep.push({ id: makeId(), date, kind: "etc", text: t, done: false });
+    }
+    const removed = new Set(pool.map((n) => n.id));
+    const existing = new Set(old.map((n) => n.id));
+    data.notes = (data.notes || []).filter((n) => !removed.has(n.id)).concat(keep.filter((n) => !existing.has(n.id)));
+  }
+
+  // Rows: the saved subject rows, plus any subject that has homework this week; "" (no subject) last if used.
+  function plannerRows(data, start) {
+    const days = new Set(weekDays(start));
+    const rows = [...(data.plannerSubjects || [])];
+    for (const h of data.homework) if (days.has(h.date) && !rows.includes(h.subject || "")) rows.push(h.subject || "");
+    const i = rows.indexOf("");
+    if (i >= 0) rows.push(rows.splice(i, 1)[0]);
+    return rows;
+  }
+
+  // The week to plan: on the management day (and after it in the same week) that's next week.
+  function planWeekFor(today, manageDay) {
+    const ws = weekStart(today);
+    const dow = parse(today).getDay();
+    const offset = (d) => (d + 6) % 7; // Monday = 0
+    return offset(dow) >= offset(manageDay) ? addDays(ws, 7) : ws;
+  }
+  const isManageDay = (today, manageDay) => parse(today).getDay() === Number(manageDay);
+
   // ----- goals -----
   // A goal is either "count" (progress goes up with +1) or "daily" (one check per day).
   const goalProgress = (g) => (g.type === "daily" ? (g.checks || []).length : g.progress || 0);
@@ -169,6 +227,17 @@
     { id: "goal1", icon: "🎯", name: "첫 목표 달성", desc: "목표를 하나 달성했어요", test: (s) => s.goalsDone >= 1 },
     { id: "goal10", icon: "🏅", name: "목표 10개", desc: "목표를 10개 달성했어요", test: (s) => s.goalsDone >= 10 },
     { id: "allgoals", icon: "🌟", name: "완벽한 달", desc: "한 달 목표(3개 이상)를 전부 달성했어요", test: (s) => s.perfectMonth },
+    { id: "streak14", icon: "🚀", name: "2주 연속", desc: "14일 연속 숙제를 모두 끝냈어요", test: (s) => s.best >= 14 },
+    { id: "hw500", icon: "🗻", name: "숙제 500개", desc: "숙제를 500개 끝냈어요", test: (s) => s.hwDone >= 500 },
+    { id: "perfectWeek", icon: "🗓️", name: "완벽한 주", desc: "숙제가 있던 5일 이상을 한 주 동안 모두 끝냈어요", test: (s) => s.perfectWeek },
+    { id: "allround", icon: "🎨", name: "다재다능", desc: "5과목 이상의 숙제를 끝냈어요", test: (s) => s.subjectsDone >= 5 },
+    { id: "plan1", icon: "📋", name: "첫 계획", desc: "계획표로 한 주를 미리 계획했어요", test: (s) => s.plannedWeeks >= 1 },
+    { id: "plan4", icon: "🧭", name: "계획의 달인", desc: "계획표로 4주를 미리 계획했어요", test: (s) => s.plannedWeeks >= 4 },
+    { id: "manage", icon: "🛠️", name: "관리의 날 지킴이", desc: "관리의 날에 다음 주 계획을 세웠어요", test: (s) => s.manageDays >= 1 },
+    { id: "manage4", icon: "🏰", name: "관리의 날 4번", desc: "관리의 날에 계획을 4번 세웠어요", test: (s) => s.manageDays >= 4 },
+    { id: "careful", icon: "🔔", name: "꼼꼼이", desc: "주의할 것을 10개 챙겼어요", test: (s) => s.notesDone >= 10 },
+    { id: "memo", icon: "📝", name: "메모 습관", desc: "4주 동안 주간 메모를 썼어요", test: (s) => s.memoWeeks >= 4 },
+    { id: "daily", icon: "🌱", name: "개근상", desc: "매일 체크 목표를 하나 달성했어요", test: (s) => s.dailyGoalDone },
   ];
 
   function badgeStats(data, today) {
@@ -192,7 +261,26 @@
       bigDay: [...perDay.values()].some((s) => s.total >= 5 && s.done === s.total),
       goalsDone: data.goals.filter((g) => goalProgress(g) >= g.target).length,
       perfectMonth: [...months.values()].some((l) => l.length >= 3 && l.every((g) => goalProgress(g) >= g.target)),
+      perfectWeek: perfectWeek(perDay),
+      subjectsDone: new Set(data.homework.filter((h) => h.done && h.subject).map((h) => h.subject)).size,
+      plannedWeeks: Object.keys(data.planLog || {}).length,
+      manageDays: Object.values(data.planLog || {}).filter((p) => p.onManageDay).length,
+      notesDone: (data.notes || []).filter((n) => n.done).length,
+      memoWeeks: Object.values(data.memos || {}).filter((t) => String(t).trim()).length,
+      dailyGoalDone: data.goals.some((g) => g.type === "daily" && goalProgress(g) >= g.target),
     };
+  }
+
+  function perfectWeek(perDay) {
+    const weeks = new Map();
+    for (const [date, st] of perDay) {
+      const w = weekStart(date);
+      const acc = weeks.get(w) || { days: 0, ok: true };
+      acc.days++;
+      if (st.done !== st.total) acc.ok = false;
+      weeks.set(w, acc);
+    }
+    return [...weeks.values()].some((w) => w.ok && w.days >= 5);
   }
 
   function badges(data, today) {
@@ -241,6 +329,7 @@
   return {
     pad, ymd, ym, parse, addDays, addMonths, daysInMonth, DOW, uid, fmtDay,
     weekStart, weekDays, dayDiff, dday, NOTE_KINDS, upcomingNotes, memoBlocks,
+    SEP, splitCell, cellItems, cellText, applyCell, noteCellText, applyNoteCell, plannerRows, planWeekFor, isManageDay,
     goalProgress, goalRatio, goalStatus, monthSummary, dayStats, subjectStats, streaks, badges, sampleData,
   };
 });

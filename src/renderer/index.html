@@ -16,6 +16,7 @@
       <nav class="nav" aria-label="메뉴">
         <button type="button" data-view="today" aria-current="page"><span aria-hidden="true">☑</span>오늘의 숙제</button>
         <button type="button" data-view="week"><span aria-hidden="true">▦</span>이번 주</button>
+        <button type="button" data-view="plan"><span aria-hidden="true">⊞</span>주간 계획표<span class="nav-dot" id="planDot" hidden title="오늘은 관리의 날"></span></button>
         <button type="button" data-view="goals"><span aria-hidden="true">◎</span>이번 달 목표</button>
         <button type="button" data-view="stats"><span aria-hidden="true">▤</span>과목별 통계</button>
         <button type="button" data-view="badges"><span aria-hidden="true">★</span>배지</button>
@@ -41,6 +42,12 @@
             <button class="btn small" type="button" id="goToday">오늘</button>
             <button class="btn small" type="button" id="nextDay" aria-label="다음 날">›</button>
           </div>
+        </div>
+
+        <div class="manage-banner" id="manageBanner" hidden>
+          <span class="mb-ico" aria-hidden="true">🛠</span>
+          <div><strong>오늘은 관리의 날</strong><br><span id="manageText"></span></div>
+          <button class="btn primary" type="button" data-view="plan">계획표 열기</button>
         </div>
 
         <div class="alert" id="todayAlert" hidden>
@@ -143,6 +150,41 @@
               </div>
               <div class="memo-view" id="memoView"></div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 주간 계획표 -->
+      <section class="view" id="view-plan" hidden>
+        <div class="view-head">
+          <h1 id="planTitle">주간 계획표</h1>
+          <div class="stepper">
+            <button class="btn small" type="button" id="planPrev" aria-label="이전 주">‹</button>
+            <button class="btn small" type="button" id="planThis">이번 주</button>
+            <button class="btn small" type="button" id="planNext">다음 주</button>
+            <span class="num" id="planRange"></span>
+            <button class="btn small" type="button" id="planFwd" aria-label="다음 주로">›</button>
+          </div>
+        </div>
+        <div class="manage-bar">
+          <label for="manageDay">관리의 날</label>
+          <select id="manageDay">
+            <option value="1">월요일</option><option value="2">화요일</option><option value="3">수요일</option>
+            <option value="4">목요일</option><option value="5">금요일</option><option value="6">토요일</option><option value="0">일요일</option>
+          </select>
+          <span id="manageStatus" class="muted"></span>
+        </div>
+        <div class="sheet">
+          <div class="fxbar">
+            <span class="namebox num" id="nameBox">B1</span>
+            <span class="fx" aria-hidden="true">fx</span>
+            <input id="fxInput" aria-label="선택한 칸 내용" placeholder="칸을 고르면 여기서도 고칠 수 있어요">
+          </div>
+          <div class="xl-wrap"><table class="xl" id="planGrid"></table></div>
+          <div class="sheet-foot">
+            <button class="btn small" type="button" id="addRow">+ 과목 행</button>
+            <button class="btn small" type="button" id="copyPrev">지난주 계획 불러오기</button>
+            <span class="label">한 칸에 숙제 여러 개는 <b>;</b> 로 구분 · Enter 아래 칸 · Tab 오른쪽 · 방향키 이동 · Esc 되돌리기 · 과목 이름을 지우면 행이 빠져요</span>
           </div>
         </div>
       </section>

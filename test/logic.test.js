@@ -71,3 +71,44 @@ test("memo markup is split into blocks", () => {
   assert.strictEqual(b[3].done, true);
   assert.strictEqual(b[4].done, false);
 });
+
+test("planner cell keeps done items and adds or removes others", () => {
+  let n = 0;
+  const id = () => "new" + n++;
+  const data = { homework: [
+    { id: "a", date: "2026-10-20", subject: "수학", title: "익힘책", done: true },
+    { id: "b", date: "2026-10-20", subject: "수학", title: "학습지", done: false },
+    { id: "c", date: "2026-10-20", subject: "국어", title: "받아쓰기", done: false },
+  ] };
+  assert.strictEqual(L.cellText(data, "2026-10-20", "수학"), "익힘책; 학습지");
+  L.applyCell(data, "2026-10-20", "수학", "익힘책 ; 오답노트", id);
+  const math = L.cellItems(data, "2026-10-20", "수학");
+  assert.deepStrictEqual(math.map((h) => [h.title, h.done]), [["익힘책", true], ["오답노트", false]]);
+  assert.strictEqual(data.homework.length, 3);
+  L.applyCell(data, "2026-10-20", "수학", "", id);
+  assert.strictEqual(L.cellItems(data, "2026-10-20", "수학").length, 0);
+  assert.ok(data.homework.some((h) => h.id === "c"));
+});
+
+test("planner rows include saved subjects then this week's others, blank last", () => {
+  const data = { plannerSubjects: ["국어", "수학"], homework: [
+    { date: "2026-10-21", subject: "", title: "x" }, { date: "2026-10-22", subject: "미술", title: "y" },
+    { date: "2026-11-30", subject: "체육", title: "z" },
+  ] };
+  assert.deepStrictEqual(L.plannerRows(data, "2026-10-19"), ["국어", "수학", "미술", ""]);
+});
+
+test("management day plans next week", () => {
+  // 2026-10-18 is a Sunday, 2026-10-16 a Friday
+  assert.strictEqual(L.planWeekFor("2026-10-18", 0), "2026-10-19");
+  assert.strictEqual(L.planWeekFor("2026-10-14", 0), "2026-10-12");
+  assert.strictEqual(L.planWeekFor("2026-10-16", 5), "2026-10-19");
+  assert.strictEqual(L.planWeekFor("2026-10-17", 5), "2026-10-19");
+  assert.ok(L.isManageDay("2026-10-18", 0));
+});
+
+test("planning badges count logged weeks", () => {
+  const data = { homework: [], goals: [], notes: [], memos: {}, planLog: { "2026-10-19": { onManageDay: true }, "2026-10-26": { onManageDay: false } } };
+  const earned = L.badges(data, "2026-10-18").filter((b) => b.earned).map((b) => b.id);
+  assert.ok(earned.includes("plan1") && earned.includes("manage") && !earned.includes("plan4"));
+});

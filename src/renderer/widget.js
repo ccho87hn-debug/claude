@@ -27,8 +27,10 @@
       : `<li class="empty">앱에서 숙제를 추가해 보세요.</li>`;
 
     const notes = L.upcomingNotes(data, today, 7).slice(0, 3);
-    $("wNotes").hidden = !notes.length;
-    $("wNotes").innerHTML = notes.map((n) => `<div><b>${L.dday(n.date, today)}</b><span>${esc(L.NOTE_KINDS[n.kind])} · ${esc(n.text)}</span></div>`).join("");
+    const manage = L.isManageDay(today, (data.settings || {}).manageDay || 0);
+    $("wNotes").hidden = !notes.length && !manage;
+    $("wNotes").innerHTML = (manage ? `<div class="w-manage"><b>🛠</b><span>관리의 날 · 다음 주 계획 세우기</span></div>` : "")
+      + notes.map((n) => `<div><b>${L.dday(n.date, today)}</b><span>${esc(L.NOTE_KINDS[n.kind])} · ${esc(n.text)}</span></div>`).join("");
 
     const m = L.monthSummary(data, today.slice(0, 7));
     $("wGoal").textContent = m.goalRate == null ? "–" : `${Math.round(m.goalRate * 100)}%`;

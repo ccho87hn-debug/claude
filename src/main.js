@@ -3,7 +3,15 @@ const path = require("path");
 const fs = require("fs");
 
 const DATA_FILE = () => path.join(app.getPath("userData"), "data.json");
-const EMPTY = { homework: [], goals: [], notes: [], memos: {}, settings: { theme: "dark", widgetOpen: false, widgetOnTop: true } };
+const EMPTY = {
+  homework: [],
+  goals: [],
+  notes: [],
+  memos: {},
+  planLog: {},
+  plannerSubjects: ["국어", "수학", "영어", "과학", "사회"],
+  settings: { theme: "dark", widgetOpen: false, widgetOnTop: true, manageDay: 0 },
+};
 
 let data = null;
 let mainWin = null;

@@ -10,6 +10,9 @@
   let selWeek = L.weekStart(TODAY);
   let view = "today";
   let editing = null; // id of the homework, goal or caution being edited inline
+  let planWeek = L.weekStart(TODAY);
+  let planSel = { r: "0", c: 1 }; // selected spreadsheet cell
+  let pendingRow = false; // a new, still unnamed subject row
   let memoMode = null; // "edit" | "view"; null = pick based on whether the memo has text
   let data = null;
   let earnedBefore = null;
@@ -80,6 +83,12 @@
 
     const subjects = [...new Set(data.homework.map((h) => h.subject).filter(Boolean))];
     $("subjectList").innerHTML = subjects.map((s) => `<option value="${esc(s)}"></option>`).join("");
+
+    const md = data.settings.manageDay;
+    const nextWs = L.addDays(L.weekStart(TODAY), 7);
+    $("manageBanner").hidden = !L.isManageDay(TODAY, md);
+    $("manageText").textContent = `다음 주(${shortDay(nextWs)} ~ ${shortDay(L.addDays(nextWs, 6))}) 숙제와 할 일을 계획표에 미리 적어 보세요.`
+      + (data.planLog[nextWs] ? " ✓ 이미 계획했어요." : "");
 
     const up = L.upcomingNotes(data, TODAY, 7);
     $("todayAlert").hidden = !up.length;
@@ -176,6 +185,133 @@
           })[b.type]()).join("")
         : `<p class="empty">아직 메모가 없어요. ‘편집’을 눌러 이번 주 계획을 적어 보세요.</p>`;
     }
+  }
+
+  // ---------- spreadsheet planner ----------
+  const COLS = "ABCDEFGHI";
+
+  function nextManageDate() {
+    for (let i = 0; i < 7; i++) {
+      const d = L.addDays(TODAY, i);
+      if (L.isManageDay(d, data.settings.manageDay)) return d;
+    }
+  }
+
+  function renderPlan() {
+    const days = L.weekDays(planWeek);
+    const rows = L.plannerRows(data, planWeek);
+    if (pendingRow) rows.push(null);
+    const thisWs = L.weekStart(TODAY);
+    $("planTitle").textContent = planWeek === thisWs ? "주간 계획표 · 이번 주" : planWeek === L.addDays(thisWs, 7) ? "주간 계획표 · 다음 주" : "주간 계획표";
+    $("planRange").textContent = `${shortDay(days[0])} ~ ${shortDay(days[6])}`;
+    $("manageDay").value = String(data.settings.manageDay);
+
+    const nextWs = L.addDays(thisWs, 7);
+    if (L.isManageDay(TODAY, data.settings.manageDay)) {
+      $("manageStatus").innerHTML = `오늘은 관리의 날이에요. 다음 주 계획을 세워요. ${data.planLog[nextWs] ? `<span class="ok">✓ 다음 주 계획 완료</span>` : ""}`;
+    } else {
+      const nd = nextManageDate();
+      $("manageStatus").textContent = `다음 관리의 날: ${shortDay(nd)} (${L.dday(nd, TODAY)})`;
+    }
+
+    const head1 = `<tr><th></th>${[...COLS].map((c) => `<th data-col="${COLS.indexOf(c)}">${c}</th>`).join("")}</tr>`;
+    const head2 = `<tr class="days"><th class="rn"></th><th data-col="0">과목</th>${days.map((d, i) => {
+      const dt = L.parse(d);
+      const cls = [d === TODAY ? "today" : "", dt.getDay() === 0 || dt.getDay() === 6 ? "weekend" : ""].join(" ");
+      return `<th class="${cls}" data-col="${i + 1}">${L.DOW[dt.getDay()]} <span class="num">${dt.getMonth() + 1}/${dt.getDate()}</span></th>`;
+    }).join("")}<th data-col="8">합계</th></tr>`;
+
+    const body = rows.map((name, r) => {
+      const cells = days.map((d, i) => {
+        if (name === null) return `<td><input class="xc" data-r="${r}" data-c="${i + 1}" disabled></td>`;
+        const items = L.cellItems(data, d, name);
+        const done = items.filter((h) => h.done).length;
+        const cls = items.length && done === items.length ? "done" : done ? "part" : "";
+        const tip = items.map((h) => (h.done ? "✓ " : "□ ") + h.title).join("\n");
+        return `<td class="${cls}" title="${esc(tip)}"><input class="xc" data-r="${r}" data-c="${i + 1}" value="${esc(L.cellText(data, d, name))}"></td>`;
+      }).join("");
+      const tot = name === null ? "" : days.reduce((a, d) => a + L.cellItems(data, d, name).length, 0) || "";
+      return `<tr><th class="rn" data-row="${r}">${r + 1}</th>
+        <td><input class="xc subj" data-r="${r}" data-c="0" value="${esc(name || "")}" placeholder="${name === "" ? "(과목 없음)" : "과목 이름"}"></td>
+        ${cells}<td class="tot">${tot}</td></tr>`;
+    }).join("");
+
+    const noteRow = `<tr class="note-row"><th class="rn" data-row="note">⚠</th><td><span class="subj-label">주의할 것</span></td>${days.map((d, i) =>
+      `<td><input class="xc" data-r="note" data-c="${i + 1}" value="${esc(L.noteCellText(data, d))}" placeholder=""></td>`).join("")}
+      <td class="tot">${data.notes.filter((n) => days.includes(n.date)).length || ""}</td></tr>`;
+
+    const foot = `<tr><td></td><td class="lbl">완료 / 전체</td>${days.map((d) => {
+      const s = L.dayStats(data, d);
+      return `<td>${s.total ? `${s.done}/${s.total}` : "–"}</td>`;
+    }).join("")}<td>${days.reduce((a, d) => a + L.dayStats(data, d).total, 0)}</td></tr>`;
+
+    $("planGrid").innerHTML = `<colgroup><col class="c-rn"><col class="c-subj">${"<col>".repeat(7)}<col class="c-tot"></colgroup>
+      <thead>${head1}${head2}</thead><tbody>${body}${noteRow}</tbody><tfoot>${foot}</tfoot>`;
+    highlightSel();
+  }
+
+  const cellEl = (r, c) => $("planGrid").querySelector(`input.xc[data-r="${r}"][data-c="${c}"]`);
+  const rowOrder = () => [...new Set([...$("planGrid").querySelectorAll("input.xc")].map((i) => i.dataset.r))];
+
+  function highlightSel() {
+    $("planGrid").querySelectorAll(".hl").forEach((el) => el.classList.remove("hl"));
+    $("planGrid").querySelectorAll(`[data-col="${planSel.c}"]`).forEach((el) => el.classList.add("hl"));
+    const rn = $("planGrid").querySelector(`[data-row="${planSel.r}"]`);
+    if (rn) rn.classList.add("hl");
+    const rowNo = planSel.r === "note" ? rowOrder().length : Number(planSel.r) + 1;
+    $("nameBox").textContent = COLS[planSel.c] + rowNo;
+    const el = cellEl(planSel.r, planSel.c);
+    if (document.activeElement !== $("fxInput")) $("fxInput").value = el ? el.value : "";
+  }
+
+  function logPlan() {
+    if (planWeek <= L.weekStart(TODAY)) return; // only planning ahead counts
+    const prev = data.planLog[planWeek] || {};
+    data.planLog[planWeek] = { at: TODAY, onManageDay: !!prev.onManageDay || L.isManageDay(TODAY, data.settings.manageDay) };
+  }
+
+  function commitCell(el) {
+    const days = L.weekDays(planWeek);
+    const rows = L.plannerRows(data, planWeek);
+    const c = Number(el.dataset.c);
+    const r = el.dataset.r;
+    if (r === "note") {
+      L.applyNoteCell(data, days[c - 1], el.value);
+    } else if (c === 0) {
+      const oldName = pendingRow && Number(r) === rows.length ? null : rows[Number(r)];
+      const name = el.value.trim();
+      const list = data.plannerSubjects;
+      if (oldName === null) {
+        pendingRow = false;
+        if (name && !list.includes(name)) list.push(name);
+      } else if (name !== oldName) {
+        const i = list.indexOf(oldName);
+        if (name) {
+          if (i >= 0) list[i] = name; else if (!list.includes(name)) list.push(name);
+          for (const h of data.homework) if (days.includes(h.date) && (h.subject || "") === oldName) h.subject = name;
+        } else if (i >= 0) list.splice(i, 1);
+      } else return;
+    } else {
+      L.applyCell(data, days[c - 1], rows[Number(r)], el.value);
+      logPlan();
+    }
+    window.api.save(data);
+    // Re-render after focus has moved on, then put focus back where the user is.
+    setTimeout(() => {
+      const inGrid = document.activeElement && document.activeElement.closest && document.activeElement.closest("#planGrid");
+      renderPlan();
+      renderChrome();
+      checkNewBadges();
+      if (inGrid) focusCell(planSel.r, planSel.c);
+    }, 0);
+  }
+
+  function focusCell(r, c) {
+    const el = cellEl(r, c);
+    if (!el || el.disabled) return false;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+    return true;
   }
 
   // ---------- goals ----------
@@ -326,7 +462,7 @@
   }
 
   // ---------- shell ----------
-  function render() {
+  function renderChrome() {
     TODAY = L.ymd(new Date());
     const [y, m] = selMonth.split("-").map(Number);
     document.querySelectorAll("[data-month-label]").forEach((el) => (el.textContent = `${y}년 ${m}월`));
@@ -337,14 +473,20 @@
     const st = L.streaks(data, TODAY);
     $("sideStreak").textContent = st.current;
     $("sideBest").textContent = `최고 기록 ${st.best}일`;
+    $("planDot").hidden = !L.isManageDay(TODAY, data.settings.manageDay);
+  }
+
+  function render() {
+    renderChrome();
 
     document.querySelectorAll(".nav button").forEach((b) => b.setAttribute("aria-current", b.dataset.view === view ? "page" : "false"));
     document.querySelectorAll(".view").forEach((v) => (v.hidden = v.id !== "view-" + view));
-    ({ today: renderToday, week: renderWeek, goals: renderGoals, stats: renderStats, badges: renderBadges })[view]();
+    ({ today: renderToday, week: renderWeek, plan: renderPlan, goals: renderGoals, stats: renderStats, badges: renderBadges })[view]();
     checkNewBadges();
   }
 
   function go(v) {
+    if (v === "plan" && view !== "plan") planWeek = L.planWeekFor(TODAY, data.settings.manageDay);
     view = v;
     editing = null;
     render();
@@ -495,6 +637,74 @@
     ed.dispatchEvent(new Event("input"));
   }));
 
+  // spreadsheet planner
+  const grid = $("planGrid");
+  grid.addEventListener("focusin", (e) => {
+    const el = e.target.closest("input.xc");
+    if (!el) return;
+    planSel = { r: el.dataset.r, c: Number(el.dataset.c) };
+    highlightSel();
+  });
+  grid.addEventListener("input", (e) => { if (e.target.matches("input.xc")) $("fxInput").value = e.target.value; });
+  // Commit when leaving a cell, whether the value came from typing or the formula bar.
+  grid.addEventListener("focusout", (e) => {
+    if (e.target.matches("input.xc") && e.target.value !== e.target.defaultValue) commitCell(e.target);
+  });
+  grid.addEventListener("keydown", (e) => {
+    const el = e.target.closest("input.xc");
+    if (!el) return;
+    const order = rowOrder();
+    const ri = order.indexOf(el.dataset.r);
+    const c = Number(el.dataset.c);
+    const move = (dr, dc) => {
+      const r2 = order[ri + dr];
+      if (r2 === undefined) return false;
+      return focusCell(r2, c + dc);
+    };
+    if (e.key === "Escape") { el.value = el.defaultValue; $("fxInput").value = el.value; e.preventDefault(); }
+    else if (e.key === "Enter") {
+      e.preventDefault();
+      if (!move(e.shiftKey ? -1 : 1, 0) && el.value !== el.defaultValue) commitCell(el);
+    } else if (e.key === "ArrowDown") { if (move(1, 0)) e.preventDefault(); }
+    else if (e.key === "ArrowUp") { if (move(-1, 0)) e.preventDefault(); }
+    else if (e.key === "ArrowRight" && el.selectionStart === el.value.length && el.selectionEnd === el.value.length) { if (focusCell(el.dataset.r, c + 1)) e.preventDefault(); }
+    else if (e.key === "ArrowLeft" && el.selectionStart === 0 && el.selectionEnd === 0) { if (focusCell(el.dataset.r, c - 1)) e.preventDefault(); }
+  });
+  $("fxInput").addEventListener("input", () => {
+    const el = cellEl(planSel.r, planSel.c);
+    if (el && !el.disabled) el.value = $("fxInput").value;
+  });
+  $("fxInput").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); const el = cellEl(planSel.r, planSel.c); if (el && el.value !== el.defaultValue) commitCell(el); }
+  });
+  $("fxInput").addEventListener("blur", () => { const el = cellEl(planSel.r, planSel.c); if (el && el.value !== el.defaultValue) commitCell(el); });
+
+  const planGo = (ws) => { planWeek = ws; pendingRow = false; renderPlan(); };
+  $("planPrev").onclick = () => planGo(L.addDays(planWeek, -7));
+  $("planFwd").onclick = () => planGo(L.addDays(planWeek, 7));
+  $("planThis").onclick = () => planGo(L.weekStart(TODAY));
+  $("planNext").onclick = () => planGo(L.addDays(L.weekStart(TODAY), 7));
+  $("manageDay").addEventListener("change", () => { data.settings.manageDay = Number($("manageDay").value); save(); });
+  $("addRow").onclick = () => {
+    pendingRow = true;
+    renderPlan();
+    const rows = rowOrder().filter((r) => r !== "note");
+    focusCell(rows[rows.length - 1], 0);
+  };
+  $("copyPrev").onclick = () => {
+    const prev = L.weekDays(L.addDays(planWeek, -7));
+    let n = 0;
+    for (const h of data.homework.filter((x) => prev.includes(x.date))) {
+      const date = L.addDays(h.date, 7);
+      if (data.homework.some((x) => x.date === date && (x.subject || "") === (h.subject || "") && x.title === h.title)) continue;
+      data.homework.push({ id: L.uid(), date, subject: h.subject || "", title: h.title, done: false });
+      n++;
+    }
+    if (n) logPlan();
+    toast(n ? `지난주 계획 ${n}개를 불러왔어요.` : "불러올 새 계획이 없어요.");
+    save();
+  };
+
   // goals
   $("goalType").addEventListener("change", () => {
     const daily = $("goalType").value === "daily";
@@ -543,8 +753,19 @@
   $("themeToggle").onclick = () => { data.settings.theme = data.settings.theme === "dark" ? "light" : "dark"; save(); };
   $("widgetToggle").onclick = () => { data.settings.widgetOpen = !data.settings.widgetOpen; save(); };
 
-  const normalize = (d) => ({ ...d, notes: d.notes || [], memos: d.memos || {} });
-  window.api.onChange((next) => { data = normalize(next); render(); });
+  const normalize = (d) => ({
+    ...d,
+    notes: d.notes || [],
+    memos: d.memos || {},
+    planLog: d.planLog || {},
+    plannerSubjects: d.plannerSubjects || ["국어", "수학", "영어", "과학", "사회"],
+    settings: { manageDay: 0, ...d.settings },
+  });
+  window.api.onChange((next) => {
+    data = normalize(next);
+    const typing = document.activeElement && document.activeElement.matches && document.activeElement.matches("input.xc, #fxInput, #memoEditor, .edit-row *");
+    if (typing) renderChrome(); else render();
+  });
   window.api.load().then((d) => { data = normalize(d); render(); });
   // Roll over to the new day if the app stays open past midnight.
   setInterval(() => {
