@@ -6,4 +6,5 @@ contextBridge.exposeInMainWorld("api", {
   onChange: (fn) => ipcRenderer.on("data:changed", (_e, data) => fn(data)),
   closeWidget: () => ipcRenderer.send("widget:close"),
   showMain: () => ipcRenderer.send("main:show"),
+  setScale: (value) => ipcRenderer.send("zoom:set", value),
 });

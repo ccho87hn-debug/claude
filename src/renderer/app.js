@@ -467,8 +467,11 @@
     const [y, m] = selMonth.split("-").map(Number);
     document.querySelectorAll("[data-month-label]").forEach((el) => (el.textContent = `${y}년 ${m}월`));
     document.documentElement.dataset.theme = data.settings.theme;
-    $("themeToggle").textContent = data.settings.theme === "dark" ? "밝은 화면으로" : "어두운 화면으로";
-    $("widgetToggle").textContent = data.settings.widgetOpen ? "위젯 닫기" : "위젯 열기";
+    $("themeToggleText").textContent = data.settings.theme === "dark" ? "밝은 화면으로" : "어두운 화면으로";
+    $("widgetToggleText").textContent = data.settings.widgetOpen ? "위젯 닫기" : "위젯 열기";
+    $("themeToggle").title = $("themeToggleText").textContent;
+    $("widgetToggle").title = $("widgetToggleText").textContent;
+    $("scaleVal").textContent = Math.round((data.settings.uiScale || 1) * 100) + "%";
     $("todayLabel").textContent = L.fmtDay(TODAY);
     const st = L.streaks(data, TODAY);
     $("sideStreak").textContent = st.current;
@@ -750,6 +753,9 @@
     go("today");
   });
 
+  $("scaleUp").onclick = () => window.api.setScale((data.settings.uiScale || 1) + 0.1);
+  $("scaleDown").onclick = () => window.api.setScale((data.settings.uiScale || 1) - 0.1);
+  document.querySelectorAll(".nav button").forEach((b) => (b.title = b.querySelector(".t").textContent));
   $("themeToggle").onclick = () => { data.settings.theme = data.settings.theme === "dark" ? "light" : "dark"; save(); };
   $("widgetToggle").onclick = () => { data.settings.widgetOpen = !data.settings.widgetOpen; save(); };
 

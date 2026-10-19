@@ -10,25 +10,34 @@
   <div class="app">
     <aside class="side">
       <div class="brand">
-        <strong>숙제 &amp; 목표</strong>
-        <span class="label" id="todayLabel"></span>
+        <img class="brand-ico" src="../assets/icon.png" alt="">
+        <div class="t">
+          <strong>숙제 &amp; 목표</strong>
+          <span class="label" id="todayLabel"></span>
+        </div>
       </div>
       <nav class="nav" aria-label="메뉴">
-        <button type="button" data-view="today" aria-current="page"><span aria-hidden="true">☑</span>오늘의 숙제</button>
-        <button type="button" data-view="week"><span aria-hidden="true">▦</span>이번 주</button>
-        <button type="button" data-view="plan"><span aria-hidden="true">⊞</span>주간 계획표<span class="nav-dot" id="planDot" hidden title="오늘은 관리의 날"></span></button>
-        <button type="button" data-view="goals"><span aria-hidden="true">◎</span>이번 달 목표</button>
-        <button type="button" data-view="stats"><span aria-hidden="true">▤</span>과목별 통계</button>
-        <button type="button" data-view="badges"><span aria-hidden="true">★</span>배지</button>
+        <button type="button" data-view="today" aria-current="page"><span aria-hidden="true">☑</span><span class="t">오늘의 숙제</span></button>
+        <button type="button" data-view="week"><span aria-hidden="true">▦</span><span class="t">이번 주</span></button>
+        <button type="button" data-view="plan"><span aria-hidden="true">⊞</span><span class="t">주간 계획표</span><span class="nav-dot" id="planDot" hidden title="오늘은 관리의 날"></span></button>
+        <button type="button" data-view="goals"><span aria-hidden="true">◎</span><span class="t">이번 달 목표</span></button>
+        <button type="button" data-view="stats"><span aria-hidden="true">▤</span><span class="t">과목별 통계</span></button>
+        <button type="button" data-view="badges"><span aria-hidden="true">★</span><span class="t">배지</span></button>
       </nav>
       <div class="side-foot">
-        <div class="streak-card">
-          <span class="label">연속 달성</span>
+        <div class="streak-card" title="연속 달성">
+          <span class="label t">연속 달성</span>
           <div><span class="big flame" id="sideStreak">0</span> <span class="muted">일</span></div>
-          <span class="label" id="sideBest">최고 기록 0일</span>
+          <span class="label t" id="sideBest">최고 기록 0일</span>
         </div>
-        <button class="btn" type="button" id="widgetToggle">위젯 열기</button>
-        <button class="btn" type="button" id="themeToggle">밝은 화면으로</button>
+        <div class="scale-row" title="화면 크기 (Ctrl + / Ctrl - / Ctrl 0)">
+          <span class="label t">화면 크기</span>
+          <button class="btn small" type="button" id="scaleDown" aria-label="작게">−</button>
+          <span class="num" id="scaleVal">100%</span>
+          <button class="btn small" type="button" id="scaleUp" aria-label="크게">+</button>
+        </div>
+        <button class="btn side-btn" type="button" id="widgetToggle"><span class="ico" aria-hidden="true">▣</span><span class="t" id="widgetToggleText">위젯 열기</span></button>
+        <button class="btn side-btn" type="button" id="themeToggle"><span class="ico" aria-hidden="true">◐</span><span class="t" id="themeToggleText">밝은 화면으로</span></button>
       </div>
     </aside>
 
