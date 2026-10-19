@@ -187,9 +187,10 @@ form.add .narrow { flex: 0 1 110px; }
 .wday.today .wday-head .label { color: var(--accent-ink); }
 .wday.weekend .wday-head strong { color: var(--bad); }
 .wday.today.weekend .wday-head strong { color: var(--accent-ink); }
-.wday-body { padding: 6px; display: grid; gap: 4px; align-content: start; flex: 1; }
-.wday-item { font-size: 12px; padding: 3px 6px; border: 1px solid var(--line); background: var(--bg); overflow-wrap: anywhere; display: flex; gap: 5px; align-items: flex-start; }
+.wday-body { padding: 6px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; align-content: start; flex: 1; min-width: 0; }
+.wday-item { min-width: 0; font-size: 12px; padding: 3px 6px; border: 1px solid var(--line); background: var(--bg); overflow-wrap: anywhere; display: flex; gap: 5px; align-items: flex-start; }
 .wday-item input { margin: 2px 0 0; accent-color: var(--accent); flex: none; }
+.wday-item span { min-width: 0; }
 .wday-item.done span { color: var(--muted); }
 .wday-item.note { border-color: var(--flame); background: color-mix(in srgb, var(--flame) 12%, var(--bg)); }
 .wday-foot { border-top: 1px solid var(--line); padding: 4px 8px; font-size: 11px; color: var(--muted); font-family: var(--num); }

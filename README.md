@@ -30,7 +30,7 @@
 
 1. GitHub 저장소의 **Actions** 탭 → **Windows 설치 파일 만들기** → 가장 최근의 초록색 체크 실행을 엽니다.
 2. 아래쪽 **Artifacts**에서 `homework-goals-windows-setup`을 내려받아 압축을 풉니다.
-3. `homework-goals-setup-1.3.0.exe`를 실행합니다.
+3. `homework-goals-setup-1.3.1.exe`를 실행합니다.
    - "Windows의 PC 보호" 창이 뜨면 **추가 정보** → **실행**을 누르세요. 코드 서명이 없는 앱이라 나오는 안내입니다.
 4. 설치가 끝나면 시작 메뉴에서 **숙제 & 목표**를 실행합니다.
 
