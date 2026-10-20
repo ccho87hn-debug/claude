@@ -40,3 +40,12 @@ test("survivors reports the last type standing", () => {
   assert.equal(RPS.survivors([{ type: "rock" }, { type: "paper" }]), null);
   assert.equal(RPS.survivors([{ type: "paper" }, { type: "paper" }]), "paper");
 });
+
+test("random lineups always include every type within bounds", () => {
+  assert.deepEqual(RPS.randomLineup(() => 0), { rock: 3, paper: 3, scissors: 3 });
+  assert.deepEqual(RPS.randomLineup(() => 0.9999), { rock: 25, paper: 25, scissors: 25 });
+  for (let i = 0; i < 200; i++) {
+    const c = RPS.randomLineup();
+    for (const t of RPS.TYPES) assert.ok(c[t] >= RPS.LINEUP_MIN && c[t] <= RPS.LINEUP_MAX);
+  }
+});

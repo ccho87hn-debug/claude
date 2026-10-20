@@ -3,7 +3,7 @@
   const TYPES = ["rock", "paper", "scissors"];
   // BEATS[a] is the type that a turns into a copy of itself.
   const BEATS = { rock: "scissors", paper: "rock", scissors: "paper" };
-  const NAMES = { rock: "주먹", paper: "보자기", scissors: "가위" };
+  const NAMES = { rock: "바위", paper: "보자기", scissors: "가위" };
   const EMOJI = { rock: "✊", paper: "✋", scissors: "✌️" };
 
   // When two different types touch, returns the type both end up as.
@@ -35,12 +35,21 @@
     return "";
   }
 
+  // A fresh lineup for a round: every type shows up, between MIN and MAX of each.
+  const LINEUP_MIN = 3;
+  const LINEUP_MAX = 25;
+  function randomLineup(rand = Math.random) {
+    const c = {};
+    for (const t of TYPES) c[t] = LINEUP_MIN + Math.floor(rand() * (LINEUP_MAX - LINEUP_MIN + 1));
+    return c;
+  }
+
   function survivors(units) {
     const left = new Set(units.map((u) => u.type));
     return left.size === 1 ? [...left][0] : null;
   }
 
-  const api = { TYPES, BEATS, NAMES, EMOJI, clash, odds, payout, validate, survivors };
+  const api = { TYPES, BEATS, NAMES, EMOJI, clash, odds, payout, validate, randomLineup, LINEUP_MIN, LINEUP_MAX, survivors };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RPS = api;
 })(this);

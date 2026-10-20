@@ -1,9 +1,10 @@
-const { TYPES, NAMES, EMOJI, clash, odds, payout, validate, survivors } = window.RPS;
+const { TYPES, NAMES, EMOJI, clash, odds, payout, validate, randomLineup, survivors } = window.RPS;
 
 // ---------- Arena constants (logical units; the canvas scales them to fit) ----------
 const W = 900;
 const H = 600;
-const R = 15;
+const R = 16; // collision radius
+const GLYPH = 40; // drawn size of a hand
 const BASE_SPEED = 105;
 const STEER = 160;
 const SUDDEN_DEATH_AT = 60; // seconds; after this, everyone speeds up so a round always ends
@@ -29,57 +30,36 @@ function persist() {
 }
 
 // ---------- Round state ----------
+// idle -> countdown (1, 2, 3) -> betting (lineup shown, player bets) -> running -> done
+let phase = "idle";
 let units = [];
 let particles = [];
-let phase = "setup"; // setup | countdown | running | done
+let lineup = null;
 let pick = null;
 let bet = 0;
-let startCounts = null;
 let clock = 0;
 let countdown = 0;
+let revealAt = 0; // time the lineup was revealed, for the pop-in animation and banner
+let goAt = -1; // time the battle started, for the "GO!" flash
 let speed = 1;
-let previewKey = "";
 
-// ---------- Sprites: each type is pre-drawn once at high resolution ----------
+// ---------- Sprites: each hand is pre-drawn once at high resolution ----------
 const sprites = {};
 function buildSprites() {
-  const px = Math.ceil(R * 2 * 3);
+  const px = GLYPH * 3;
   for (const t of TYPES) {
     const c = document.createElement("canvas");
-    c.width = c.height = px + 8;
+    c.width = c.height = px;
     const g = c.getContext("2d");
-    const cx = c.width / 2;
-    const r = px / 2;
-    const grad = g.createRadialGradient(cx - r * 0.35, cx - r * 0.35, r * 0.1, cx, cx, r);
-    grad.addColorStop(0, "#ffffff");
-    grad.addColorStop(0.25, COLORS[t]);
-    grad.addColorStop(1, shade(COLORS[t], -0.35));
-    g.fillStyle = grad;
-    g.beginPath();
-    g.arc(cx, cx, r, 0, Math.PI * 2);
-    g.fill();
-    g.lineWidth = 3;
-    g.strokeStyle = "rgba(255,255,255,.85)";
-    g.stroke();
-    g.font = `${Math.round(r * 1.15)}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;
+    g.font = `${Math.round(px * 0.8)}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;
     g.textAlign = "center";
     g.textBaseline = "middle";
-    g.fillText(EMOJI[t], cx, cx + r * 0.08);
+    g.fillText(EMOJI[t], px / 2, px / 2 + px * 0.04);
     sprites[t] = c;
   }
 }
 
-function shade(hex, amt) {
-  const n = parseInt(hex.slice(1), 16);
-  const f = (v) => Math.max(0, Math.min(255, Math.round(v + v * amt)));
-  return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
-}
-
-// ---------- Setup ----------
-function counts() {
-  return { rock: +$("nRock").value, paper: +$("nPaper").value, scissors: +$("nScissors").value };
-}
-
+// ---------- Placement ----------
 // Scatter units across the arena without overlaps (gives up after a few tries per unit when crowded).
 function spawn(c) {
   const list = [];
@@ -87,47 +67,49 @@ function spawn(c) {
     for (let i = 0; i < c[t]; i++) {
       let x, y, tries = 0;
       do {
-        x = R + 10 + Math.random() * (W - 2 * R - 20);
-        y = R + 10 + Math.random() * (H - 2 * R - 20);
-      } while (tries++ < 40 && list.some((u) => (u.x - x) ** 2 + (u.y - y) ** 2 < (R * 2.4) ** 2));
+        x = R + 20 + Math.random() * (W - 2 * R - 40);
+        y = R + 50 + Math.random() * (H - 2 * R - 70);
+      } while (tries++ < 60 && list.some((u) => (u.x - x) ** 2 + (u.y - y) ** 2 < (R * 2.6) ** 2));
       const a = Math.random() * Math.PI * 2;
-      list.push({ x, y, vx: Math.cos(a) * BASE_SPEED, vy: Math.sin(a) * BASE_SPEED, type: t, flash: 0, bob: Math.random() * 6 });
+      list.push({
+        x, y, type: t,
+        vx: Math.cos(a) * BASE_SPEED, vy: Math.sin(a) * BASE_SPEED,
+        flash: 0, bob: Math.random() * 6, delay: Math.random() * 0.7,
+      });
     }
   }
   return list;
 }
 
-function refreshSetup() {
-  const c = counts();
-  if (pick && !odds(c, pick)) pick = null;
-  $("oRock").textContent = c.rock;
-  $("oPaper").textContent = c.paper;
-  $("oScissors").textContent = c.scissors;
+// ---------- Panels ----------
+function showPanel(id) {
+  for (const p of ["idlePanel", "countPanel", "betPanel", "livePanel"]) $(p).classList.toggle("hidden", p !== id);
+}
+
+function refreshBet() {
+  if (!lineup) return;
+  $("lRock").textContent = lineup.rock;
+  $("lPaper").textContent = lineup.paper;
+  $("lScissors").textContent = lineup.scissors;
   for (const btn of document.querySelectorAll(".pick")) {
-    const o = odds(c, btn.dataset.type);
+    const o = odds(lineup, btn.dataset.type);
     btn.querySelector(".odds").textContent = o ? `x${o}` : "-";
     btn.disabled = !o;
     btn.classList.toggle("selected", btn.dataset.type === pick);
   }
   const b = Math.floor(+$("betAmount").value);
-  const err = validate({ counts: c, pick, bet: b, coins: save.coins });
+  const err = validate({ counts: lineup, pick, bet: b, coins: save.coins });
   const hint = $("hint");
   hint.classList.toggle("warn", !!err);
   if (err) hint.textContent = err;
   else if (b === 0) hint.textContent = "0코인이면 구경만 해요.";
-  else hint.textContent = `이기면 🪙 ${payout(b, c, pick).toLocaleString()} 받아요.`;
+  else hint.textContent = `이기면 🪙 ${payout(b, lineup, pick).toLocaleString()} 받아요.`;
   $("start").disabled = !!err;
-  const key = TYPES.map((t) => c[t]).join(",");
-  if (phase === "setup" && key !== previewKey) {
-    previewKey = key;
-    units = spawn(c);
-    updateHud();
-  }
 }
 
 function refreshWallet() {
   $("coins").textContent = save.coins.toLocaleString();
-  $("bailout").classList.toggle("hidden", !(save.coins < 10 && phase !== "running" && phase !== "countdown"));
+  $("bailout").classList.toggle("hidden", !(save.coins < 10 && (phase === "idle" || phase === "done" || phase === "betting")));
   $("betAmount").max = save.coins;
   const total = save.wins + save.losses;
   $("record").innerHTML = total
@@ -135,26 +117,48 @@ function refreshWallet() {
     : "";
 }
 
-function startRound() {
-  const c = counts();
-  bet = Math.floor(+$("betAmount").value);
-  if (validate({ counts: c, pick, bet, coins: save.coins })) return;
-  save.coins -= bet;
-  persist();
-  startCounts = c;
-  units = spawn(c);
-  particles = [];
-  clock = 0;
-  countdown = 3;
+// ---------- Round flow ----------
+function newRound() {
   phase = "countdown";
-  $("setupPanel").classList.add("hidden");
-  $("livePanel").classList.remove("hidden");
+  countdown = 3;
+  units = [];
+  particles = [];
+  lineup = null;
+  pick = null;
+  clock = 0;
+  goAt = -1;
   $("result").classList.add("hidden");
-  $("liveBet").innerHTML = bet
-    ? `${EMOJI[pick]} <b>${NAMES[pick]}</b>에 🪙 ${bet.toLocaleString()} 걸었어요<br>배당 x${odds(c, pick)} · 이기면 🪙 ${payout(bet, c, pick).toLocaleString()}`
-    : `${EMOJI[pick]} <b>${NAMES[pick]}</b> 응원 중 (구경 모드)`;
+  showPanel("countPanel");
   refreshWallet();
   updateHud();
+}
+
+function reveal() {
+  lineup = randomLineup();
+  units = spawn(lineup);
+  revealAt = performance.now();
+  phase = "betting";
+  const b = $("betAmount");
+  if (+b.value > save.coins) b.value = save.coins;
+  showPanel("betPanel");
+  refreshBet();
+  refreshWallet();
+  updateHud();
+}
+
+function startBattle() {
+  bet = Math.floor(+$("betAmount").value);
+  if (validate({ counts: lineup, pick, bet, coins: save.coins })) return;
+  save.coins -= bet;
+  persist();
+  phase = "running";
+  goAt = performance.now();
+  beep(1040, 0.15, "sine");
+  showPanel("livePanel");
+  $("liveBet").innerHTML = bet
+    ? `${EMOJI[pick]} <b>${NAMES[pick]}</b>에 🪙 ${bet.toLocaleString()} 걸었어요<br>배당 x${odds(lineup, pick)} · 이기면 🪙 ${payout(bet, lineup, pick).toLocaleString()}`
+    : `${EMOJI[pick]} <b>${NAMES[pick]}</b> 응원 중 (구경 모드)`;
+  refreshWallet();
 }
 
 function finishRound(winner) {
@@ -162,7 +166,7 @@ function finishRound(winner) {
   const won = winner === pick;
   let delta;
   if (won) {
-    const gain = payout(bet, startCounts, pick);
+    const gain = payout(bet, lineup, pick);
     save.coins += gain;
     delta = gain - bet;
     if (bet > 0) save.wins++;
@@ -181,20 +185,6 @@ function finishRound(winner) {
   else rc.textContent = won ? `적중! +🪙 ${delta.toLocaleString()}` : `꽝! -🪙 ${bet.toLocaleString()}`;
   $("result").classList.remove("hidden");
   beep(won ? 880 : 220, 0.25, won ? "triangle" : "sawtooth");
-}
-
-function backToSetup() {
-  phase = "setup";
-  previewKey = "";
-  clock = 0;
-  particles = [];
-  $("result").classList.add("hidden");
-  $("livePanel").classList.add("hidden");
-  $("setupPanel").classList.remove("hidden");
-  const b = $("betAmount");
-  if (+b.value > save.coins) b.value = save.coins;
-  refreshWallet();
-  refreshSetup();
 }
 
 // ---------- Simulation ----------
@@ -271,16 +261,19 @@ function step(dt) {
     }
   }
 
+  stepParticles(dt);
+  clock += dt;
+  const winner = survivors(units);
+  if (winner) finishRound(winner);
+}
+
+function stepParticles(dt) {
   for (const p of particles) {
     p.x += p.vx * dt; p.y += p.vy * dt;
     p.vx *= 0.92; p.vy *= 0.92;
     p.life -= dt;
   }
   particles = particles.filter((p) => p.life > 0);
-
-  clock += dt;
-  const winner = survivors(units);
-  if (winner) finishRound(winner);
 }
 
 function burst(x, y, color) {
@@ -326,6 +319,17 @@ function resize() {
   floor = buildFloor(canvas.width / W);
 }
 
+function bigText(text, size, alpha, y = H / 2) {
+  ctx.font = `800 ${size}px Pretendard, "Segoe UI", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.lineWidth = size / 10;
+  ctx.strokeStyle = `rgba(0,0,0,${alpha * 0.5})`;
+  ctx.strokeText(text, W / 2, y);
+  ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+  ctx.fillText(text, W / 2, y);
+}
+
 function draw(t) {
   const s = canvas.width / W;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -333,22 +337,36 @@ function draw(t) {
   ctx.setTransform(s, 0, 0, s, 0, 0);
 
   const moving = phase === "running";
+  const sinceReveal = (t - revealAt) / 1000;
   for (const u of units) {
-    ctx.fillStyle = "rgba(0,0,0,.28)";
-    ctx.beginPath();
-    ctx.ellipse(u.x + 3, u.y + 6, R * 0.95, R * 0.6, 0, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  for (const u of units) {
-    const hop = moving ? Math.abs(Math.sin(t / 140 + u.bob)) * 2.5 : 0;
+    // Pop in one by one after the reveal.
+    let grow = 1;
+    if (phase === "betting") {
+      const k = Math.max(0, Math.min(1, (sinceReveal - u.delay) / 0.3));
+      grow = k + 0.25 * Math.sin(k * Math.PI);
+      if (grow <= 0) continue;
+    }
+    const hop = moving ? Math.abs(Math.sin(t / 140 + u.bob)) * 3 : Math.sin(t / 500 + u.bob) * 1.2;
     const pop = u.flash > 0 ? 1 + u.flash * 1.2 : 1;
-    const size = R * 2 * pop;
-    ctx.drawImage(sprites[u.type], u.x - size / 2 - 1, u.y - size / 2 - hop - 1, size + 2, size + 2);
+    const size = GLYPH * pop * grow;
+    const tilt = moving ? Math.sin(t / 180 + u.bob) * 0.12 : 0;
+
+    ctx.fillStyle = "rgba(0,0,0,.25)";
+    ctx.beginPath();
+    ctx.ellipse(u.x + 2, u.y + size * 0.42, size * 0.34, size * 0.12, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(u.x, u.y - hop);
+    ctx.rotate(tilt);
+    ctx.drawImage(sprites[u.type], -size / 2, -size / 2, size, size);
+    ctx.restore();
+
     if (u.flash > 0) {
       ctx.strokeStyle = `rgba(255,255,255,${u.flash * 2.5})`;
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.arc(u.x, u.y - hop, R * (2.4 - u.flash * 2), 0, Math.PI * 2);
+      ctx.arc(u.x, u.y - hop, R * (2.6 - u.flash * 2), 0, Math.PI * 2);
       ctx.stroke();
     }
   }
@@ -361,16 +379,24 @@ function draw(t) {
   }
   ctx.globalAlpha = 1;
 
-  if (phase === "countdown") {
+  if (phase === "idle") {
+    bigText("새 판을 시작해 보세요", 40, 0.75);
+  } else if (phase === "countdown") {
     const n = Math.ceil(countdown);
     const f = countdown - Math.floor(countdown);
-    ctx.fillStyle = "rgba(0,0,0,.35)";
+    ctx.fillStyle = "rgba(0,0,0,.3)";
     ctx.fillRect(0, 0, W, H);
-    ctx.font = `800 ${120 + f * 60}px Pretendard, "Segoe UI", sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillStyle = `rgba(255,255,255,${0.4 + f * 0.6})`;
-    ctx.fillText(n > 0 ? n : "GO!", W / 2, H / 2);
+    if (n >= 1) bigText(String(4 - n), 140 + f * 70, 0.4 + f * 0.6);
+  } else if (phase === "betting" && sinceReveal < 2.2) {
+    const a = Math.min(1, sinceReveal * 3, (2.2 - sinceReveal) * 2);
+    const text = TYPES.map((k) => `${NAMES[k]} ${lineup[k]}`).join("  ·  ");
+    ctx.fillStyle = `rgba(0,0,0,${a * 0.45})`;
+    ctx.fillRect(0, H / 2 - 50, W, 100);
+    bigText(text, 48, a);
+  }
+  if (goAt > 0 && (t - goAt) < 700) {
+    const k = (t - goAt) / 700;
+    bigText("GO!", 120 + k * 60, 1 - k);
   }
 }
 
@@ -382,7 +408,7 @@ function updateHud() {
   $("cPaper").textContent = c.paper;
   $("cScissors").textContent = c.scissors;
   const segs = $("popBar").children;
-  TYPES.forEach((t, i) => (segs[i].style.width = (c[t] / total) * 100 + "%"));
+  TYPES.forEach((t, i) => (segs[i].style.width = units.length ? (c[t] / total) * 100 + "%" : "0"));
   $("timer").textContent = `${clock.toFixed(1)}초` + (clock > SUDDEN_DEATH_AT ? " 🔥" : "");
 }
 
@@ -413,43 +439,39 @@ function frame(t) {
   if (phase === "countdown") {
     const before = Math.ceil(countdown);
     countdown -= dt;
-    if (Math.ceil(countdown) !== before) beep(countdown > 0 ? 520 : 1040, 0.12, "sine");
-    if (countdown <= -0.4) phase = "running";
+    if (Math.ceil(countdown) !== before && countdown > 0) beep(520, 0.12, "sine");
+    if (countdown <= 0) { beep(780, 0.2, "triangle"); reveal(); }
   } else if (phase === "running") {
     const sub = speed * 2;
     for (let i = 0; i < sub && phase === "running"; i++) step(dt / 2);
     updateHud();
   } else if (phase === "done") {
-    for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
-    particles = particles.filter((p) => p.life > 0);
+    stepParticles(dt);
   }
   draw(t);
   requestAnimationFrame(frame);
 }
 
 // ---------- Wiring ----------
-for (const id of ["nRock", "nPaper", "nScissors", "betAmount"]) $(id).addEventListener("input", refreshSetup);
+$("betAmount").addEventListener("input", refreshBet);
 for (const btn of document.querySelectorAll(".pick")) {
-  btn.addEventListener("click", () => { pick = btn.dataset.type; refreshSetup(); });
+  btn.addEventListener("click", () => { pick = btn.dataset.type; refreshBet(); });
 }
-$("randomize").addEventListener("click", () => {
-  for (const id of ["nRock", "nPaper", "nScissors"]) $(id).value = 3 + Math.floor(Math.random() * 38);
-  refreshSetup();
-});
 document.querySelectorAll("[data-add]").forEach((b) =>
   b.addEventListener("click", () => {
     $("betAmount").value = Math.min(save.coins, Math.floor(+$("betAmount").value || 0) + +b.dataset.add);
-    refreshSetup();
+    refreshBet();
   }));
-document.querySelector("[data-half]").addEventListener("click", () => { $("betAmount").value = Math.floor(save.coins / 2); refreshSetup(); });
-document.querySelector("[data-all]").addEventListener("click", () => { $("betAmount").value = save.coins; refreshSetup(); });
-$("start").addEventListener("click", startRound);
-$("again").addEventListener("click", backToSetup);
+document.querySelector("[data-half]").addEventListener("click", () => { $("betAmount").value = Math.floor(save.coins / 2); refreshBet(); });
+document.querySelector("[data-all]").addEventListener("click", () => { $("betAmount").value = save.coins; refreshBet(); });
+$("newRound").addEventListener("click", newRound);
+$("start").addEventListener("click", startBattle);
+$("again").addEventListener("click", newRound);
 $("bailout").addEventListener("click", () => {
   save.coins += BAILOUT;
   persist();
   refreshWallet();
-  refreshSetup();
+  refreshBet();
 });
 document.querySelectorAll(".speed-btn").forEach((b) =>
   b.addEventListener("click", () => {
@@ -462,5 +484,5 @@ buildSprites();
 resize();
 if (+$("betAmount").value > save.coins) $("betAmount").value = save.coins;
 refreshWallet();
-refreshSetup();
+updateHud();
 requestAnimationFrame(frame);

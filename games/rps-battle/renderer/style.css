@@ -120,6 +120,18 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .panel h2 { font-size: 15px; color: var(--muted); margin: 14px 0 10px; font-weight: 600; }
 .panel h2:first-child { margin-top: 0; }
 
+.lead { font-size: 14px; line-height: 1.6; margin: 0 0 12px; }
+
+.lineup { display: grid; gap: 6px; }
+.lineup-row {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--panel-2); border-radius: 10px; padding: 8px 14px; font-size: 16px;
+}
+.lineup-row b { font-size: 22px; }
+.lineup-row.rock b { color: var(--rock); }
+.lineup-row.paper b { color: var(--paper); }
+.lineup-row.scissors b { color: var(--scissors); }
+
 .count-row {
   display: grid; grid-template-columns: 76px 1fr 32px; align-items: center; gap: 8px;
   margin-bottom: 8px;

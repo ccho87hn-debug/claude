@@ -34,42 +34,45 @@
       <div id="result" class="overlay hidden">
         <div class="result-card">
           <div class="result-emoji" id="resultEmoji">✊</div>
-          <div class="result-title" id="resultTitle">주먹 승리!</div>
+          <div class="result-title" id="resultTitle">바위 승리!</div>
           <div class="result-coins" id="resultCoins">+0</div>
-          <button id="again" class="primary">다시 하기</button>
+          <button id="again" class="primary">다음 판</button>
         </div>
       </div>
     </section>
 
-    <aside class="panel" id="setupPanel">
-      <h2>1. 몇 마리씩 넣을까?</h2>
-      <div class="counts">
-        <label class="count-row rock">
-          <span class="lbl">✊ 주먹</span>
-          <input type="range" id="nRock" min="0" max="50" value="15">
-          <output id="oRock">15</output>
-        </label>
-        <label class="count-row paper">
-          <span class="lbl">✋ 보자기</span>
-          <input type="range" id="nPaper" min="0" max="50" value="15">
-          <output id="oPaper">15</output>
-        </label>
-        <label class="count-row scissors">
-          <span class="lbl">✌️ 가위</span>
-          <input type="range" id="nScissors" min="0" max="50" value="15">
-          <output id="oScissors">15</output>
-        </label>
-        <button id="randomize" class="ghost small">🎲 랜덤으로</button>
+    <aside class="panel" id="idlePanel">
+      <h2>새 판</h2>
+      <p class="lead">1, 2, 3 하면 이번 판에 바위, 보자기, 가위가 몇 마리씩 나오는지 공개돼요. 그걸 보고 누가 이길지 코인을 걸면 돼요.</p>
+      <button id="newRound" class="primary big">새 판 시작</button>
+      <div class="rules">
+        <b>규칙</b> 가위가 보자기에 닿으면 보자기가 가위로, 보자기가 바위에 닿으면 바위가 보자기로,
+        바위가 가위에 닿으면 가위가 바위로 바뀌어요. 마지막에 한 종류만 남으면 끝!
+        적게 나온 쪽에 걸수록 배당이 커요.
+      </div>
+    </aside>
+
+    <aside class="panel hidden" id="countPanel">
+      <h2>공개 중...</h2>
+      <p class="lead">이번 판 구성을 뽑고 있어요.</p>
+    </aside>
+
+    <aside class="panel hidden" id="betPanel">
+      <h2>이번 판 구성</h2>
+      <div class="lineup">
+        <div class="lineup-row rock"><span>✊ 바위</span><b id="lRock">0</b></div>
+        <div class="lineup-row paper"><span>✋ 보자기</span><b id="lPaper">0</b></div>
+        <div class="lineup-row scissors"><span>✌️ 가위</span><b id="lScissors">0</b></div>
       </div>
 
-      <h2>2. 누가 이길까?</h2>
+      <h2>누가 이길까?</h2>
       <div class="picks">
-        <button class="pick rock" data-type="rock">✊<span>주먹</span><em class="odds">x0</em></button>
+        <button class="pick rock" data-type="rock">✊<span>바위</span><em class="odds">x0</em></button>
         <button class="pick paper" data-type="paper">✋<span>보자기</span><em class="odds">x0</em></button>
         <button class="pick scissors" data-type="scissors">✌️<span>가위</span><em class="odds">x0</em></button>
       </div>
 
-      <h2>3. 코인 걸기</h2>
+      <h2>코인 걸기</h2>
       <div class="bet">
         <input type="number" id="betAmount" min="0" step="10" value="100">
         <div class="quick">
@@ -81,12 +84,7 @@
       </div>
       <p class="hint" id="hint"></p>
       <button id="start" class="primary big">배틀 시작!</button>
-
-      <div class="rules">
-        <b>규칙</b> 가위가 보자기에 닿으면 보자기가 가위로, 보자기가 주먹에 닿으면 주먹이 보자기로,
-        주먹이 가위에 닿으면 가위가 주먹으로 바뀌어요. 마지막에 한 종류만 남으면 끝!
-        적은 쪽에 걸수록 배당이 커요.
-      </div>
+      <div class="record" id="record"></div>
     </aside>
 
     <aside class="panel hidden" id="livePanel">
@@ -99,7 +97,6 @@
         <button class="ghost small speed-btn" data-speed="4">4x</button>
       </div>
       <label class="toggle"><input type="checkbox" id="sound" checked> 소리</label>
-      <div class="record" id="record"></div>
     </aside>
   </main>
 
