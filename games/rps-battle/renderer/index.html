@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'">
+  <title>가위바위보 배틀 베팅</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>✊✌️✋ 가위바위보 배틀</h1>
+    <div class="wallet">
+      <span class="coin-icon">🪙</span>
+      <span id="coins">0</span>
+      <button id="bailout" class="ghost hidden" title="코인이 다 떨어졌을 때 받을 수 있어요">지원금 받기</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="arena-wrap">
+      <canvas id="arena"></canvas>
+      <div id="hud" class="hud">
+        <div class="pop-bar" id="popBar">
+          <div class="seg rock"></div><div class="seg paper"></div><div class="seg scissors"></div>
+        </div>
+        <div class="hud-row">
+          <span class="hud-count rock">✊ <b id="cRock">0</b></span>
+          <span class="hud-count paper">✋ <b id="cPaper">0</b></span>
+          <span class="hud-count scissors">✌️ <b id="cScissors">0</b></span>
+          <span class="hud-time" id="timer">0.0초</span>
+        </div>
+      </div>
+      <div id="result" class="overlay hidden">
+        <div class="result-card">
+          <div class="result-emoji" id="resultEmoji">✊</div>
+          <div class="result-title" id="resultTitle">주먹 승리!</div>
+          <div class="result-coins" id="resultCoins">+0</div>
+          <button id="again" class="primary">다시 하기</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel" id="setupPanel">
+      <h2>1. 몇 마리씩 넣을까?</h2>
+      <div class="counts">
+        <label class="count-row rock">
+          <span class="lbl">✊ 주먹</span>
+          <input type="range" id="nRock" min="0" max="50" value="15">
+          <output id="oRock">15</output>
+        </label>
+        <label class="count-row paper">
+          <span class="lbl">✋ 보자기</span>
+          <input type="range" id="nPaper" min="0" max="50" value="15">
+          <output id="oPaper">15</output>
+        </label>
+        <label class="count-row scissors">
+          <span class="lbl">✌️ 가위</span>
+          <input type="range" id="nScissors" min="0" max="50" value="15">
+          <output id="oScissors">15</output>
+        </label>
+        <button id="randomize" class="ghost small">🎲 랜덤으로</button>
+      </div>
+
+      <h2>2. 누가 이길까?</h2>
+      <div class="picks">
+        <button class="pick rock" data-type="rock">✊<span>주먹</span><em class="odds">x0</em></button>
+        <button class="pick paper" data-type="paper">✋<span>보자기</span><em class="odds">x0</em></button>
+        <button class="pick scissors" data-type="scissors">✌️<span>가위</span><em class="odds">x0</em></button>
+      </div>
+
+      <h2>3. 코인 걸기</h2>
+      <div class="bet">
+        <input type="number" id="betAmount" min="0" step="10" value="100">
+        <div class="quick">
+          <button class="ghost small" data-add="10">+10</button>
+          <button class="ghost small" data-add="100">+100</button>
+          <button class="ghost small" data-half>절반</button>
+          <button class="ghost small" data-all>올인</button>
+        </div>
+      </div>
+      <p class="hint" id="hint"></p>
+      <button id="start" class="primary big">배틀 시작!</button>
+
+      <div class="rules">
+        <b>규칙</b> 가위가 보자기에 닿으면 보자기가 가위로, 보자기가 주먹에 닿으면 주먹이 보자기로,
+        주먹이 가위에 닿으면 가위가 주먹으로 바뀌어요. 마지막에 한 종류만 남으면 끝!
+        적은 쪽에 걸수록 배당이 커요.
+      </div>
+    </aside>
+
+    <aside class="panel hidden" id="livePanel">
+      <h2>배틀 진행 중</h2>
+      <p class="live-bet" id="liveBet"></p>
+      <div class="speed">
+        <span>속도</span>
+        <button class="ghost small speed-btn active" data-speed="1">1x</button>
+        <button class="ghost small speed-btn" data-speed="2">2x</button>
+        <button class="ghost small speed-btn" data-speed="4">4x</button>
+      </div>
+      <label class="toggle"><input type="checkbox" id="sound" checked> 소리</label>
+      <div class="record" id="record"></div>
+    </aside>
+  </main>
+
+  <script src="logic.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
