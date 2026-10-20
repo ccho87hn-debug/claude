@@ -82,7 +82,7 @@ function createMain() {
     minHeight: 600,
     title: "숙제 & 목표",
     icon: ICON,
-    backgroundColor: data.settings.theme === "light" ? "#f4f5fa" : "#14161f",
+    backgroundColor: require("./renderer/themes.js").byId(data.settings.theme).bg,
     autoHideMenuBar: true,
     webPreferences: webPrefs,
   });

@@ -3,6 +3,18 @@
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const RING = 263.9;
+  const ic = (name, cls = "") => `<svg class="ic ${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+
+  // Each subject keeps the same tag color everywhere.
+  const SUBJECT_COLORS = { 국어: "#ef6461", 수학: "#4c8dff", 영어: "#9a6bff", 과학: "#22b07d", 사회: "#f0a42b", 미술: "#ec5f9e", 음악: "#14b8c4", 체육: "#f97316", 기타: "#8b90a0" };
+  const PALETTE = ["#4c8dff", "#22b07d", "#f0a42b", "#9a6bff", "#ef6461", "#14b8c4", "#ec5f9e", "#84cc16"];
+  function subjectColor(name) {
+    if (SUBJECT_COLORS[name]) return SUBJECT_COLORS[name];
+    let h = 0;
+    for (const ch of String(name)) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+    return PALETTE[h % PALETTE.length];
+  }
+  const chip = (subject) => `<span class="chip" style="--tag:${subjectColor(subject)}">${esc(subject)}</span>`;
 
   let TODAY = L.ymd(new Date());
   let selDay = TODAY;
@@ -58,18 +70,19 @@
     }
     return `<li class="hw${h.done ? " done" : ""}" data-id="${h.id}">
       <input type="checkbox" id="hw-${h.id}" ${h.done ? "checked" : ""}>
-      ${h.subject ? `<span class="chip">${esc(h.subject)}</span>` : "<span></span>"}
+      ${h.subject ? chip(h.subject) : "<span></span>"}
       <label class="title" for="hw-${h.id}">${esc(h.title)}</label>
       <span class="row-ctrl">
-        <button class="icon-btn" type="button" data-edit aria-label="고치기" title="고치기">✎</button>
-        <button class="icon-btn del" type="button" data-del aria-label="삭제" title="삭제">✕</button>
+        <button class="icon-btn" type="button" data-edit aria-label="고치기" title="고치기">${ic("edit")}</button>
+        <button class="icon-btn del" type="button" data-del aria-label="삭제" title="삭제">${ic("x")}</button>
       </span>
     </li>`;
   }
 
   function renderToday() {
     const s = L.dayStats(data, selDay);
-    $("dayTitle").textContent = selDay === TODAY ? "오늘의 숙제" : L.fmtDay(selDay) + " 숙제";
+    $("dayTitle").textContent = selDay === TODAY ? "오늘의 숙제" : selDay < TODAY ? "지난 숙제" : "다가올 숙제";
+    $("todaySub").textContent = L.fmtDay(selDay);
     setRing($("ringFg"), $("ringText"), s.ratio);
     $("hwCount").textContent = `${s.done} / ${s.total} 완료`;
     $("hwCountSmall").textContent = s.total ? `${s.total}개` : "";
@@ -79,7 +92,7 @@
     const empty = !data.homework.length && !data.goals.length && !data.notes.length;
     $("hwList").innerHTML = s.items.length
       ? s.items.map(hwRow).join("")
-      : `<li class="empty">위 칸에 숙제를 적고 ‘추가’를 눌러 보세요.${empty ? ` <button class="btn small" type="button" id="loadSample">예시로 채워 보기</button>` : ""}</li>`;
+      : `<li class="empty"><span>위 칸에 숙제를 적고 ‘추가’를 눌러 보세요.</span>${empty ? ` <button class="btn small" type="button" id="loadSample">예시로 채워 보기</button>` : ""}</li>`;
 
     const subjects = [...new Set(data.homework.map((h) => h.subject).filter(Boolean))];
     $("subjectList").innerHTML = subjects.map((s) => `<option value="${esc(s)}"></option>`).join("");
@@ -94,7 +107,7 @@
     $("todayAlert").hidden = !up.length;
     $("todayAlertList").innerHTML = up.map((n) => `
       <div class="alert-item">${noteBadge(n)}
-        <span class="kind ${n.kind}" style="padding:0 6px">${L.NOTE_KINDS[n.kind]}</span>
+        <span class="kind ${n.kind}">${L.NOTE_KINDS[n.kind]}</span>
         <span>${esc(n.text)}</span><span class="label">${shortDay(n.date)}</span></div>`).join("");
 
     const m = L.monthSummary(data, TODAY.slice(0, 7));
@@ -123,14 +136,14 @@
       const notes = data.notes.filter((n) => n.date === d);
       const cls = ["wday", d === TODAY ? "today" : "", dt.getDay() === 0 || dt.getDay() === 6 ? "weekend" : ""].join(" ");
       const items = [
-        ...notes.map((n) => `<div class="wday-item note" title="${L.NOTE_KINDS[n.kind]}"><b class="flame">⚠</b><span>${esc(n.text)}</span></div>`),
-        ...s.items.map((h) => `<label class="wday-item${h.done ? " done" : ""}" data-id="${h.id}"><input type="checkbox" ${h.done ? "checked" : ""}><span>${h.subject ? esc(h.subject) + " · " : ""}${esc(h.title)}</span></label>`),
+        ...notes.map((n) => `<div class="wday-item note" title="${L.NOTE_KINDS[n.kind]}">${ic("alert")}<span>${esc(n.text)}</span></div>`),
+        ...s.items.map((h) => `<label class="wday-item${h.done ? " done" : ""}" data-id="${h.id}"><input type="checkbox" ${h.done ? "checked" : ""}><span>${h.subject ? `<b style="color:${subjectColor(h.subject)}">${esc(h.subject)}</b> ` : ""}${esc(h.title)}</span></label>`),
       ].join("");
       return `<div class="${cls}">
         <div class="wday-head"><strong>${L.DOW[dt.getDay()]}</strong><span class="label num">${dt.getMonth() + 1}/${dt.getDate()}</span></div>
         <div class="wday-body">${items || `<span class="label">비어 있음</span>`}</div>
         <div class="wday-foot">${s.total ? `${s.done}/${s.total} 완료` : "–"}</div>
-        <button class="wday-add" type="button" data-addday="${d}">+ 숙제</button>
+        <button class="wday-add" type="button" data-addday="${d}">${ic("plus")}숙제</button>
       </div>`;
     }).join("");
 
@@ -154,8 +167,8 @@
             <span class="kind ${n.kind}">${L.NOTE_KINDS[n.kind]}</span>
             <span class="text">${esc(n.text)} <span class="label">${shortDay(n.date)}</span></span>
             <span class="row-ctrl">
-              <button class="icon-btn" type="button" data-edit aria-label="고치기" title="고치기">✎</button>
-              <button class="icon-btn del" type="button" data-del aria-label="삭제" title="삭제">✕</button>
+              <button class="icon-btn" type="button" data-edit aria-label="고치기" title="고치기">${ic("edit")}</button>
+              <button class="icon-btn del" type="button" data-del aria-label="삭제" title="삭제">${ic("x")}</button>
             </span>
           </li>`).join("")
       : `<li class="empty">시험, 준비물, 마감일을 적어 두면 날짜가 다가올 때 오늘 화면과 위젯에 알려 드려요.</li>`;
@@ -236,7 +249,7 @@
         ${cells}<td class="tot">${tot}</td></tr>`;
     }).join("");
 
-    const noteRow = `<tr class="note-row"><th class="rn" data-row="note">⚠</th><td><span class="subj-label">주의할 것</span></td>${days.map((d, i) =>
+    const noteRow = `<tr class="note-row"><th class="rn" data-row="note">!</th><td><span class="subj-label">주의할 것</span></td>${days.map((d, i) =>
       `<td><input class="xc" data-r="note" data-c="${i + 1}" value="${esc(L.noteCellText(data, d))}" placeholder=""></td>`).join("")}
       <td class="tot">${data.notes.filter((n) => days.includes(n.date)).length || ""}</td></tr>`;
 
@@ -349,8 +362,8 @@
       <div class="goal-top">
         <span class="goal-name">${esc(g.title)} <span class="label">${g.type === "daily" ? "매일 체크" : "횟수"}</span></span>
         <span class="goal-ctrl">${ctrl}
-          <button class="icon-btn" type="button" data-edit aria-label="고치기" title="고치기">✎</button>
-          <button class="icon-btn del" type="button" data-del aria-label="목표 삭제" title="삭제">✕</button></span>
+          <button class="icon-btn" type="button" data-edit aria-label="고치기" title="고치기">${ic("edit")}</button>
+          <button class="icon-btn del" type="button" data-del aria-label="목표 삭제" title="삭제">${ic("x")}</button></span>
       </div>
       <div class="bar${r >= 1 ? " good" : ""}"><span style="width:${r * 100}%"></span></div>
       ${extra}
@@ -461,16 +474,38 @@
     earnedBefore = new Set(list.filter((b) => b.earned).map((b) => b.id));
   }
 
+  // ---------- settings ----------
+  function renderSettings() {
+    const cur = window.Themes.byId(data.settings.theme);
+    $("themeName").textContent = `지금: ${cur.name}`;
+    $("themeGrid").innerHTML = window.Themes.THEMES.map((t) => {
+      const line = t.fg;
+      return `<button class="theme-card" type="button" data-theme-id="${t.id}" aria-pressed="${t.id === cur.id}">
+        <div class="theme-prev" style="background:${t.bg}">
+          <div class="p-side" style="background:${t.side}"><i style="background:${t.accent}"></i><i style="background:${line}"></i><i style="background:${line}"></i><i style="background:${line}"></i></div>
+          <div class="p-main">
+            <div class="p-card" style="background:${t.surface}">
+              <div class="p-bar" style="width:70%;background:linear-gradient(90deg,${t.accent},${t.accent2})"></div>
+              <div class="p-line" style="background:${line}"></div><div class="p-line" style="width:60%;background:${line}"></div>
+            </div>
+            <div class="p-card" style="background:${t.surface}"><div class="p-line" style="background:${line}"></div></div>
+          </div>
+        </div>
+        <div class="theme-meta"><div><strong>${t.name}</strong><span class="label">${t.desc}</span></div>${t.id === cur.id ? `<span class="theme-check">${ic("check")}</span>` : ""}</div>
+      </button>`;
+    }).join("");
+  }
+
   // ---------- shell ----------
   function renderChrome() {
     TODAY = L.ymd(new Date());
     const [y, m] = selMonth.split("-").map(Number);
     document.querySelectorAll("[data-month-label]").forEach((el) => (el.textContent = `${y}년 ${m}월`));
     document.documentElement.dataset.theme = data.settings.theme;
-    $("themeToggleText").textContent = data.settings.theme === "dark" ? "밝은 화면으로" : "어두운 화면으로";
-    $("widgetToggleText").textContent = data.settings.widgetOpen ? "위젯 닫기" : "위젯 열기";
-    $("themeToggle").title = $("themeToggleText").textContent;
-    $("widgetToggle").title = $("widgetToggleText").textContent;
+    $("widgetToggle").setAttribute("aria-checked", String(!!data.settings.widgetOpen));
+    $("widgetOnTop").setAttribute("aria-checked", String(data.settings.widgetOnTop !== false));
+    const left = L.dayStats(data, TODAY);
+    $("navTodayCount").textContent = left.total - left.done || "";
     $("scaleVal").textContent = Math.round((data.settings.uiScale || 1) * 100) + "%";
     $("todayLabel").textContent = L.fmtDay(TODAY);
     const st = L.streaks(data, TODAY);
@@ -484,7 +519,7 @@
 
     document.querySelectorAll(".nav button").forEach((b) => b.setAttribute("aria-current", b.dataset.view === view ? "page" : "false"));
     document.querySelectorAll(".view").forEach((v) => (v.hidden = v.id !== "view-" + view));
-    ({ today: renderToday, week: renderWeek, plan: renderPlan, goals: renderGoals, stats: renderStats, badges: renderBadges })[view]();
+    ({ today: renderToday, week: renderWeek, plan: renderPlan, goals: renderGoals, stats: renderStats, badges: renderBadges, settings: renderSettings })[view]();
     checkNewBadges();
   }
 
@@ -756,8 +791,14 @@
   $("scaleUp").onclick = () => window.api.setScale((data.settings.uiScale || 1) + 0.1);
   $("scaleDown").onclick = () => window.api.setScale((data.settings.uiScale || 1) - 0.1);
   document.querySelectorAll(".nav button").forEach((b) => (b.title = b.querySelector(".t").textContent));
-  $("themeToggle").onclick = () => { data.settings.theme = data.settings.theme === "dark" ? "light" : "dark"; save(); };
+  $("themeGrid").addEventListener("click", (e) => {
+    const card = e.target.closest("[data-theme-id]");
+    if (!card) return;
+    data.settings.theme = card.dataset.themeId;
+    save();
+  });
   $("widgetToggle").onclick = () => { data.settings.widgetOpen = !data.settings.widgetOpen; save(); };
+  $("widgetOnTop").onclick = () => { data.settings.widgetOnTop = data.settings.widgetOnTop === false; save(); };
 
   const normalize = (d) => ({
     ...d,

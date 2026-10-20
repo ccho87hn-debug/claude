@@ -2,11 +2,40 @@
 <html lang="ko" data-theme="dark">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'">
   <title>숙제 &amp; 목표</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <!-- Line icons (24px grid, stroked with currentColor) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-today" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="4.5"/><path d="m8.5 12.2 2.6 2.6 4.6-5.3"/></symbol>
+      <symbol id="i-week" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 17.2h.01M12 17.2h.01"/></symbol>
+      <symbol id="i-plan" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><path d="M3.5 9.5h17M3.5 15h17M9.5 3.5v17"/></symbol>
+      <symbol id="i-goals" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.8"/><circle cx="12" cy="12" r="1.2"/></symbol>
+      <symbol id="i-stats" viewBox="0 0 24 24"><path d="M4 20h16"/><rect x="5.5" y="11" width="3" height="6.5" rx="1"/><rect x="10.5" y="5.5" width="3" height="12" rx="1"/><rect x="15.5" y="8.5" width="3" height="9" rx="1"/></symbol>
+      <symbol id="i-badge" viewBox="0 0 24 24"><circle cx="12" cy="9" r="5.5"/><path d="m8.6 13.4-1.4 7.1 4.8-2.6 4.8 2.6-1.4-7.1"/></symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 12h3M11 12h9M4 17h11M19 17h1"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17" r="2"/></symbol>
+      <symbol id="i-edit" viewBox="0 0 24 24"><path d="M15.2 5.2a2.3 2.3 0 0 1 3.3 3.3L8.6 18.4 4.5 19.5l1.1-4.1Z"/><path d="m13.5 7 3.3 3.3"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></symbol>
+      <symbol id="i-left" viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></symbol>
+      <symbol id="i-right" viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.3 4.3 2.9 17.5A2 2 0 0 0 4.6 20.5h14.8a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0Z"/><path d="M12 9.5v4M12 16.8h.01"/></symbol>
+      <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 21.5c3.9 0 6.5-2.6 6.5-6.2 0-3.3-2.1-5.4-3.6-7.5-.4 1.8-1.4 3-2.6 3.4.2-2.9-.9-5.8-3.4-7.7-.2 3.4-1.9 5.2-3.2 7-1 1.3-1.7 2.8-1.7 4.8 0 3.6 2.6 6.2 6.5 6.2Z"/><path d="M12 21.5c-1.8 0-3-1.2-3-2.9 0-1.6 1.1-2.6 2-3.6.5 1 1.2 1.4 1.9 1.5.4-.6.6-1.4.5-2.3 1.2.9 1.6 2.2 1.6 3.2 0 2.1-1.2 4.1-3 4.1Z"/></symbol>
+      <symbol id="i-widget" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2"/></symbol>
+      <symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.6 6.4a4 4 0 0 0-5.3 5.3L3.8 17.2a1.6 1.6 0 0 0 2.3 2.3l5.5-5.5a4 4 0 0 0 5.3-5.3l-2.5 2.5-2.1-.5-.5-2.1Z"/></symbol>
+      <symbol id="i-memo" viewBox="0 0 24 24"><path d="M14 3.5H7a2.5 2.5 0 0 0-2.5 2.5v12A2.5 2.5 0 0 0 7 20.5h10a2.5 2.5 0 0 0 2.5-2.5V9Z"/><path d="M14 3.5V9h5.5M8.5 13h7M8.5 16.5h4.5"/></symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="2.8"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="12" height="12" rx="2.5"/><path d="M15.5 8.5V6A2.5 2.5 0 0 0 13 3.5H6A2.5 2.5 0 0 0 3.5 6v7A2.5 2.5 0 0 0 6 15.5h2.5"/></symbol>
+      <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 0 0 0 17c1.2 0 1.8-.8 1.8-1.7 0-1.3-1.1-1.6-1.1-2.7 0-1 .8-1.6 1.8-1.6h2A4 4 0 0 0 20.5 10.6C20.5 6.6 16.7 3.5 12 3.5Z"/><circle cx="7.8" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/></symbol>
+      <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2.5"/><path d="M8.5 20h7M12 16.5V20"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></symbol>
+    </defs>
+  </svg>
+
   <div class="app">
     <aside class="side">
       <div class="brand">
@@ -16,65 +45,65 @@
           <span class="label" id="todayLabel"></span>
         </div>
       </div>
+
+      <div class="nav-label t">메뉴</div>
       <nav class="nav" aria-label="메뉴">
-        <button type="button" data-view="today" aria-current="page"><span aria-hidden="true">☑</span><span class="t">오늘의 숙제</span></button>
-        <button type="button" data-view="week"><span aria-hidden="true">▦</span><span class="t">이번 주</span></button>
-        <button type="button" data-view="plan"><span aria-hidden="true">⊞</span><span class="t">주간 계획표</span><span class="nav-dot" id="planDot" hidden title="오늘은 관리의 날"></span></button>
-        <button type="button" data-view="goals"><span aria-hidden="true">◎</span><span class="t">이번 달 목표</span></button>
-        <button type="button" data-view="stats"><span aria-hidden="true">▤</span><span class="t">과목별 통계</span></button>
-        <button type="button" data-view="badges"><span aria-hidden="true">★</span><span class="t">배지</span></button>
+        <button type="button" data-view="today" aria-current="page"><svg class="ic" aria-hidden="true"><use href="#i-today"/></svg><span class="t">오늘의 숙제</span><span class="nav-count t" id="navTodayCount"></span></button>
+        <button type="button" data-view="week"><svg class="ic" aria-hidden="true"><use href="#i-week"/></svg><span class="t">이번 주</span></button>
+        <button type="button" data-view="plan"><svg class="ic" aria-hidden="true"><use href="#i-plan"/></svg><span class="t">주간 계획표</span><span class="nav-dot" id="planDot" hidden title="오늘은 관리의 날"></span></button>
+        <button type="button" data-view="goals"><svg class="ic" aria-hidden="true"><use href="#i-goals"/></svg><span class="t">이번 달 목표</span></button>
+        <button type="button" data-view="stats"><svg class="ic" aria-hidden="true"><use href="#i-stats"/></svg><span class="t">과목별 통계</span></button>
+        <button type="button" data-view="badges"><svg class="ic" aria-hidden="true"><use href="#i-badge"/></svg><span class="t">배지</span></button>
       </nav>
+
       <div class="side-foot">
         <div class="streak-card" title="연속 달성">
-          <span class="label t">연속 달성</span>
-          <div><span class="big flame" id="sideStreak">0</span> <span class="muted">일</span></div>
-          <span class="label t" id="sideBest">최고 기록 0일</span>
+          <div class="streak-ico"><svg class="ic" aria-hidden="true"><use href="#i-flame"/></svg></div>
+          <div class="streak-txt">
+            <span class="label t">연속 달성</span>
+            <div class="streak-num"><span class="big" id="sideStreak">0</span><span class="unit">일</span></div>
+            <span class="label t" id="sideBest">최고 기록 0일</span>
+          </div>
         </div>
-        <div class="scale-row" title="화면 크기 (Ctrl + / Ctrl - / Ctrl 0)">
-          <span class="label t">화면 크기</span>
-          <button class="btn small" type="button" id="scaleDown" aria-label="작게">−</button>
-          <span class="num" id="scaleVal">100%</span>
-          <button class="btn small" type="button" id="scaleUp" aria-label="크게">+</button>
-        </div>
-        <button class="btn side-btn" type="button" id="widgetToggle"><span class="ico" aria-hidden="true">▣</span><span class="t" id="widgetToggleText">위젯 열기</span></button>
-        <button class="btn side-btn" type="button" id="themeToggle"><span class="ico" aria-hidden="true">◐</span><span class="t" id="themeToggleText">밝은 화면으로</span></button>
+        <nav class="nav" aria-label="설정">
+          <button type="button" data-view="settings"><svg class="ic" aria-hidden="true"><use href="#i-settings"/></svg><span class="t">설정</span></button>
+        </nav>
       </div>
     </aside>
 
     <main>
       <!-- 오늘의 숙제 -->
       <section class="view" id="view-today">
-        <div class="view-head">
-          <h1 id="dayTitle">오늘의 숙제</h1>
-          <div class="stepper">
-            <button class="btn small" type="button" id="prevDay" aria-label="이전 날">‹</button>
-            <button class="btn small" type="button" id="goToday">오늘</button>
-            <button class="btn small" type="button" id="nextDay" aria-label="다음 날">›</button>
+        <header class="view-head">
+          <div>
+            <p class="eyebrow" id="todaySub"></p>
+            <h1 id="dayTitle">오늘의 숙제</h1>
           </div>
-        </div>
+          <div class="seg">
+            <button class="seg-btn icon" type="button" id="prevDay" aria-label="이전 날"><svg class="ic"><use href="#i-left"/></svg></button>
+            <button class="seg-btn" type="button" id="goToday">오늘</button>
+            <button class="seg-btn icon" type="button" id="nextDay" aria-label="다음 날"><svg class="ic"><use href="#i-right"/></svg></button>
+          </div>
+        </header>
 
-        <div class="manage-banner" id="manageBanner" hidden>
-          <span class="mb-ico" aria-hidden="true">🛠</span>
-          <div><strong>오늘은 관리의 날</strong><br><span id="manageText"></span></div>
+        <div class="banner manage" id="manageBanner" hidden>
+          <span class="banner-ico"><svg class="ic"><use href="#i-tool"/></svg></span>
+          <div class="banner-txt"><strong>오늘은 관리의 날이에요</strong><span id="manageText"></span></div>
           <button class="btn primary" type="button" data-view="plan">계획표 열기</button>
         </div>
 
-        <div class="alert" id="todayAlert" hidden>
-          <div class="alert-head"><strong>⚠ 주의할 것 · 7일 이내</strong><button class="btn small" type="button" data-view="week">이번 주 보기</button></div>
-          <div class="alert-list" id="todayAlertList"></div>
-        </div>
-
-        <div class="grid-2">
-          <div class="panel">
-            <div class="ph"><h2>숙제 목록</h2><span class="label" id="hwCountSmall"></span></div>
-            <div class="pb">
+        <div class="today-grid">
+          <div class="card">
+            <div class="card-head"><h2>숙제</h2><span class="label" id="hwCountSmall"></span></div>
+            <div class="card-body">
               <div class="summary">
-                <svg class="ring" width="104" height="104" viewBox="0 0 100 100" role="img" aria-label="오늘 완료율">
-                  <circle class="bg" cx="50" cy="50" r="42" stroke-width="12"></circle>
-                  <circle class="fg" id="ringFg" cx="50" cy="50" r="42" stroke-width="12" transform="rotate(-90 50 50)" stroke-dasharray="263.9" stroke-dashoffset="263.9"></circle>
-                  <text x="50" y="50" font-size="22" id="ringText">–</text>
+                <svg class="ring" width="112" height="112" viewBox="0 0 100 100" role="img" aria-label="오늘 완료율">
+                  <defs><linearGradient id="gradA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="g1"/><stop offset="1" class="g2"/></linearGradient></defs>
+                  <circle class="bg" cx="50" cy="50" r="42" stroke-width="9"></circle>
+                  <circle class="fg" id="ringFg" cx="50" cy="50" r="42" stroke-width="9" transform="rotate(-90 50 50)" stroke-dasharray="263.9" stroke-dashoffset="263.9" style="stroke:url(#gradA)"></circle>
+                  <text x="50" y="50" font-size="21" id="ringText">–</text>
                 </svg>
-                <div>
+                <div class="summary-txt">
                   <strong id="hwCount">0 / 0 완료</strong>
                   <span class="muted" id="hwHint"></span>
                 </div>
@@ -82,27 +111,36 @@
               <form class="add" id="hwForm" autocomplete="off">
                 <input class="narrow" id="hwSubject" placeholder="과목" maxlength="12" list="subjectList" aria-label="과목">
                 <datalist id="subjectList"></datalist>
-                <input class="grow" id="hwInput" placeholder="숙제 추가 (예: 수학 익힘책 24~26쪽)" maxlength="80" aria-label="숙제 내용" required>
-                <button class="btn primary" type="submit">추가</button>
+                <input class="grow" id="hwInput" placeholder="숙제를 입력하세요 (예: 수학 익힘책 24~26쪽)" maxlength="80" aria-label="숙제 내용" required>
+                <button class="btn primary" type="submit"><svg class="ic"><use href="#i-plus"/></svg>추가</button>
               </form>
               <ul class="list" id="hwList"></ul>
             </div>
           </div>
-          <div class="panel">
-            <div class="ph"><h2>이번 달 한눈에</h2><button class="btn small" type="button" data-view="goals">목표 관리</button></div>
-            <div class="pb">
-              <div class="summary">
-                <svg class="ring" width="84" height="84" viewBox="0 0 100 100" role="img" aria-label="이번 달 목표 달성률">
-                  <circle class="bg" cx="50" cy="50" r="42" stroke-width="12"></circle>
-                  <circle class="fg" id="mRingFg" cx="50" cy="50" r="42" stroke-width="12" transform="rotate(-90 50 50)" stroke-dasharray="263.9" stroke-dashoffset="263.9"></circle>
-                  <text x="50" y="50" font-size="22" id="mRingText">–</text>
-                </svg>
-                <div>
-                  <strong id="mGoalsLine">목표 0개</strong>
-                  <span class="muted" id="mHwLine"></span>
+
+          <div class="stack">
+            <div class="card">
+              <div class="card-head"><h2>이번 달</h2><button class="btn ghost small" type="button" data-view="goals">목표 관리<svg class="ic"><use href="#i-right"/></svg></button></div>
+              <div class="card-body">
+                <div class="summary">
+                  <svg class="ring" width="84" height="84" viewBox="0 0 100 100" role="img" aria-label="이번 달 목표 달성률">
+                    <defs><linearGradient id="gradB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" class="g1"/><stop offset="1" class="g2"/></linearGradient></defs>
+                    <circle class="bg" cx="50" cy="50" r="42" stroke-width="10"></circle>
+                    <circle class="fg" id="mRingFg" cx="50" cy="50" r="42" stroke-width="10" transform="rotate(-90 50 50)" stroke-dasharray="263.9" stroke-dashoffset="263.9" style="stroke:url(#gradB)"></circle>
+                    <text x="50" y="50" font-size="21" id="mRingText">–</text>
+                  </svg>
+                  <div class="summary-txt">
+                    <strong id="mGoalsLine">목표 0개</strong>
+                    <span class="muted" id="mHwLine"></span>
+                  </div>
                 </div>
+                <div class="mini-goals" id="miniGoals"></div>
               </div>
-              <div id="miniGoals"></div>
+            </div>
+
+            <div class="card alert" id="todayAlert" hidden>
+              <div class="card-head"><h2><svg class="ic warn"><use href="#i-alert"/></svg>다가오는 주의할 것</h2><button class="btn ghost small" type="button" data-view="week">이번 주<svg class="ic"><use href="#i-right"/></svg></button></div>
+              <div class="alert-list" id="todayAlertList"></div>
             </div>
           </div>
         </div>
@@ -110,20 +148,22 @@
 
       <!-- 이번 주 -->
       <section class="view" id="view-week" hidden>
-        <div class="view-head">
-          <h1 id="weekTitle">이번 주</h1>
-          <div class="stepper">
-            <button class="btn small" type="button" id="prevWeek" aria-label="이전 주">‹</button>
-            <button class="btn small" type="button" id="thisWeek">이번 주</button>
-            <span class="num" id="weekRange"></span>
-            <button class="btn small" type="button" id="nextWeek" aria-label="다음 주">›</button>
+        <header class="view-head">
+          <div>
+            <p class="eyebrow" id="weekRange"></p>
+            <h1 id="weekTitle">이번 주</h1>
           </div>
-        </div>
+          <div class="seg">
+            <button class="seg-btn icon" type="button" id="prevWeek" aria-label="이전 주"><svg class="ic"><use href="#i-left"/></svg></button>
+            <button class="seg-btn" type="button" id="thisWeek">이번 주</button>
+            <button class="seg-btn icon" type="button" id="nextWeek" aria-label="다음 주"><svg class="ic"><use href="#i-right"/></svg></button>
+          </div>
+        </header>
         <div class="week" id="weekBoard"></div>
         <div class="grid-2">
-          <div class="panel">
-            <div class="ph"><h2>⚠ 주의할 것</h2><span class="label">시험 · 준비물 · 마감</span></div>
-            <div class="pb">
+          <div class="card">
+            <div class="card-head"><h2><svg class="ic warn"><use href="#i-alert"/></svg>주의할 것</h2><span class="label">시험 · 준비물 · 마감</span></div>
+            <div class="card-body">
               <form class="add" id="noteForm" autocomplete="off">
                 <input id="noteDate" type="date" aria-label="날짜" required>
                 <select id="noteKind" aria-label="종류">
@@ -133,26 +173,26 @@
                   <option value="etc">기타</option>
                 </select>
                 <input class="grow" id="noteText" placeholder="예: 수학 단원평가 3단원" maxlength="60" aria-label="내용" required>
-                <button class="btn primary" type="submit">추가</button>
+                <button class="btn primary" type="submit"><svg class="ic"><use href="#i-plus"/></svg>추가</button>
               </form>
               <ul class="notes" id="noteList"></ul>
             </div>
           </div>
-          <div class="panel">
-            <div class="ph">
-              <h2>주간 메모</h2>
-              <div class="tabs" role="tablist">
-                <button type="button" role="tab" id="tabEdit" aria-selected="false">✎ 편집</button>
-                <button type="button" role="tab" id="tabView" aria-selected="true">▤ 보기</button>
+          <div class="card">
+            <div class="card-head">
+              <h2><svg class="ic"><use href="#i-memo"/></svg>주간 메모</h2>
+              <div class="seg small" role="tablist">
+                <button class="seg-btn" type="button" role="tab" id="tabEdit" aria-selected="false"><svg class="ic"><use href="#i-edit"/></svg>편집</button>
+                <button class="seg-btn" type="button" role="tab" id="tabView" aria-selected="true"><svg class="ic"><use href="#i-eye"/></svg>보기</button>
               </div>
             </div>
-            <div class="pb">
+            <div class="card-body">
               <div id="memoEditWrap" hidden>
-                <div class="memo-tools" style="margin-bottom:6px">
-                  <button class="btn small" type="button" data-insert="# ">제목</button>
-                  <button class="btn small" type="button" data-insert="- ">목록</button>
-                  <button class="btn small" type="button" data-insert="! ">중요</button>
-                  <button class="btn small" type="button" data-insert="[ ] ">할 일</button>
+                <div class="memo-tools">
+                  <button class="chip-btn" type="button" data-insert="# ">제목</button>
+                  <button class="chip-btn" type="button" data-insert="- ">목록</button>
+                  <button class="chip-btn" type="button" data-insert="! ">중요</button>
+                  <button class="chip-btn" type="button" data-insert="[ ] ">할 일</button>
                 </div>
                 <textarea class="memo-editor" id="memoEditor" spellcheck="false" placeholder="# 이번 주 목표&#10;- 수학 3단원 복습&#10;! 목요일 시험 범위 확인&#10;[ ] 체육복 챙기기"></textarea>
                 <span class="label">자동으로 저장돼요. ‘보기’를 누르면 정리된 모양으로 볼 수 있어요.</span>
@@ -165,23 +205,29 @@
 
       <!-- 주간 계획표 -->
       <section class="view" id="view-plan" hidden>
-        <div class="view-head">
-          <h1 id="planTitle">주간 계획표</h1>
-          <div class="stepper">
-            <button class="btn small" type="button" id="planPrev" aria-label="이전 주">‹</button>
-            <button class="btn small" type="button" id="planThis">이번 주</button>
-            <button class="btn small" type="button" id="planNext">다음 주</button>
-            <span class="num" id="planRange"></span>
-            <button class="btn small" type="button" id="planFwd" aria-label="다음 주로">›</button>
+        <header class="view-head">
+          <div>
+            <p class="eyebrow" id="planRange"></p>
+            <h1 id="planTitle">주간 계획표</h1>
           </div>
-        </div>
-        <div class="manage-bar">
-          <label for="manageDay">관리의 날</label>
-          <select id="manageDay">
+          <div class="head-actions">
+            <div class="seg">
+              <button class="seg-btn" type="button" id="planThis">이번 주</button>
+              <button class="seg-btn" type="button" id="planNext">다음 주</button>
+            </div>
+            <div class="seg">
+              <button class="seg-btn icon" type="button" id="planPrev" aria-label="이전 주"><svg class="ic"><use href="#i-left"/></svg></button>
+              <button class="seg-btn icon" type="button" id="planFwd" aria-label="다음 주로"><svg class="ic"><use href="#i-right"/></svg></button>
+            </div>
+          </div>
+        </header>
+        <div class="banner subtle">
+          <span class="banner-ico"><svg class="ic"><use href="#i-tool"/></svg></span>
+          <div class="banner-txt"><strong>관리의 날</strong><span id="manageStatus"></span></div>
+          <select id="manageDay" aria-label="관리의 날 요일">
             <option value="1">월요일</option><option value="2">화요일</option><option value="3">수요일</option>
             <option value="4">목요일</option><option value="5">금요일</option><option value="6">토요일</option><option value="0">일요일</option>
           </select>
-          <span id="manageStatus" class="muted"></span>
         </div>
         <div class="sheet">
           <div class="fxbar">
@@ -191,52 +237,54 @@
           </div>
           <div class="xl-wrap"><table class="xl" id="planGrid"></table></div>
           <div class="sheet-foot">
-            <button class="btn small" type="button" id="addRow">+ 과목 행</button>
-            <button class="btn small" type="button" id="copyPrev">지난주 계획 불러오기</button>
-            <span class="label">한 칸에 숙제 여러 개는 <b>;</b> 로 구분 · Enter 아래 칸 · Tab 오른쪽 · 방향키 이동 · Esc 되돌리기 · 과목 이름을 지우면 행이 빠져요</span>
+            <button class="btn small" type="button" id="addRow"><svg class="ic"><use href="#i-plus"/></svg>과목 행</button>
+            <button class="btn small" type="button" id="copyPrev"><svg class="ic"><use href="#i-copy"/></svg>지난주 계획 불러오기</button>
+            <span class="label">여러 개는 <kbd>;</kbd> 로 구분 · <kbd>Enter</kbd> 아래 · <kbd>Tab</kbd> 오른쪽 · 방향키 이동 · <kbd>Esc</kbd> 되돌리기</span>
           </div>
         </div>
       </section>
 
       <!-- 이번 달 목표 -->
       <section class="view" id="view-goals" hidden>
-        <div class="view-head">
-          <h1 id="monthTitle">이번 달 목표</h1>
-          <div class="stepper">
-            <button class="btn small" type="button" data-month-step="-1" aria-label="이전 달">‹</button>
-            <span class="num" data-month-label></span>
-            <button class="btn small" type="button" data-month-step="1" aria-label="다음 달">›</button>
+        <header class="view-head">
+          <div>
+            <p class="eyebrow" data-month-label></p>
+            <h1 id="monthTitle">이번 달 목표</h1>
           </div>
-        </div>
+          <div class="seg">
+            <button class="seg-btn icon" type="button" data-month-step="-1" aria-label="이전 달"><svg class="ic"><use href="#i-left"/></svg></button>
+            <button class="seg-btn icon" type="button" data-month-step="1" aria-label="다음 달"><svg class="ic"><use href="#i-right"/></svg></button>
+          </div>
+        </header>
         <div class="stats">
-          <div class="stat"><span class="label">목표 달성률</span><span class="v" id="goalRate">–</span></div>
-          <div class="stat"><span class="label">완료한 목표</span><span class="v" id="goalDone">0/0</span></div>
-          <div class="stat"><span class="label">숙제 완료율</span><span class="v" id="hwMonthRate">–</span></div>
-          <div class="stat"><span class="label">완벽한 날</span><span class="v" id="perfectDays">0</span></div>
+          <div class="stat"><span class="stat-ico"><svg class="ic"><use href="#i-goals"/></svg></span><div><span class="label">목표 달성률</span><span class="v" id="goalRate">–</span></div></div>
+          <div class="stat"><span class="stat-ico"><svg class="ic"><use href="#i-check"/></svg></span><div><span class="label">완료한 목표</span><span class="v" id="goalDone">0/0</span></div></div>
+          <div class="stat"><span class="stat-ico"><svg class="ic"><use href="#i-today"/></svg></span><div><span class="label">숙제 완료율</span><span class="v" id="hwMonthRate">–</span></div></div>
+          <div class="stat"><span class="stat-ico flame"><svg class="ic"><use href="#i-flame"/></svg></span><div><span class="label">완벽한 날</span><span class="v" id="perfectDays">0</span></div></div>
         </div>
         <div class="grid-2">
-          <div class="panel">
-            <div class="ph"><h2>목표</h2><span class="label" id="goalTypeHelp">횟수 세기: +1 버튼으로 할 때마다 올려요.</span></div>
-            <div class="pb">
+          <div class="card">
+            <div class="card-head"><h2>목표</h2><span class="label" id="goalTypeHelp">횟수 세기: +1 버튼으로 할 때마다 올려요.</span></div>
+            <div class="card-body">
               <form class="add" id="goalForm" autocomplete="off">
                 <input class="grow" id="goalInput" placeholder="목표 (예: 책 읽기)" maxlength="40" aria-label="목표 이름" required>
                 <select id="goalType" aria-label="기록 방식">
                   <option value="count">횟수 세기</option>
                   <option value="daily">매일 체크</option>
                 </select>
-                <input class="narrow" id="goalTarget" type="number" min="1" max="9999" value="10" aria-label="목표 수">
-                <input class="narrow" id="goalUnit" placeholder="단위 (권, 회)" maxlength="6" aria-label="단위">
-                <button class="btn primary" type="submit">추가</button>
+                <input class="narrow tiny" id="goalTarget" type="number" min="1" max="9999" value="10" aria-label="목표 수">
+                <input class="narrow tiny" id="goalUnit" placeholder="단위" maxlength="6" aria-label="단위">
+                <button class="btn primary" type="submit"><svg class="ic"><use href="#i-plus"/></svg>추가</button>
               </form>
               <div id="goalList"></div>
             </div>
           </div>
-          <div class="panel">
-            <div class="ph">
+          <div class="card">
+            <div class="card-head">
               <h2>날짜별 숙제 완료</h2>
-              <span class="legend"><i></i>없음 <i style="background:color-mix(in srgb,var(--accent) 22%,var(--bg))"></i>일부 <i style="background:color-mix(in srgb,var(--accent) 50%,var(--bg))"></i>절반↑ <i style="background:var(--accent)"></i>전부</span>
+              <span class="legend"><i class="l0"></i>없음 <i class="l1"></i>일부 <i class="l2"></i>절반↑ <i class="l3"></i>전부</span>
             </div>
-            <div class="pb">
+            <div class="card-body">
               <div class="cal" id="cal"></div>
               <span class="label">날짜를 누르면 그날 숙제로 이동해요. 주황 점은 주의할 것이 있는 날이에요.</span>
             </div>
@@ -246,50 +294,101 @@
 
       <!-- 과목별 통계 -->
       <section class="view" id="view-stats" hidden>
-        <div class="view-head">
-          <h1>과목별 통계</h1>
-          <div class="stepper">
-            <button class="btn small" type="button" data-month-step="-1" aria-label="이전 달">‹</button>
-            <span class="num" data-month-label></span>
-            <button class="btn small" type="button" data-month-step="1" aria-label="다음 달">›</button>
+        <header class="view-head">
+          <div>
+            <p class="eyebrow" data-month-label></p>
+            <h1>과목별 통계</h1>
           </div>
-        </div>
+          <div class="seg">
+            <button class="seg-btn icon" type="button" data-month-step="-1" aria-label="이전 달"><svg class="ic"><use href="#i-left"/></svg></button>
+            <button class="seg-btn icon" type="button" data-month-step="1" aria-label="다음 달"><svg class="ic"><use href="#i-right"/></svg></button>
+          </div>
+        </header>
         <div class="grid-2">
-          <div class="panel">
-            <div class="ph"><h2>과목별 완료율</h2></div>
-            <div class="pb" id="subjList"></div>
+          <div class="card">
+            <div class="card-head"><h2>과목별 완료율</h2></div>
+            <div class="card-body" id="subjList"></div>
           </div>
-          <div class="panel">
-            <div class="ph"><h2>한마디</h2></div>
-            <div class="pb"><p id="subjInsight" class="muted" style="margin:0"></p></div>
+          <div class="card insight">
+            <div class="card-head"><h2>한마디</h2></div>
+            <div class="card-body"><p id="subjInsight" class="muted"></p></div>
           </div>
         </div>
-        <div class="panel chart">
-          <div class="ph"><h2>최근 14일 완료한 숙제</h2><span class="legend"><i style="background:var(--flame)"></i>오늘</span></div>
-          <div class="pb" id="chart14"></div>
+        <div class="card chart">
+          <div class="card-head"><h2>최근 14일 완료한 숙제</h2><span class="legend"><i class="today"></i>오늘</span></div>
+          <div class="card-body" id="chart14"></div>
         </div>
       </section>
 
       <!-- 배지 -->
       <section class="view" id="view-badges" hidden>
-        <div class="view-head">
-          <h1>배지</h1>
-          <span class="muted" id="badgeCount"></span>
-        </div>
+        <header class="view-head">
+          <div>
+            <p class="eyebrow" id="badgeCount"></p>
+            <h1>배지</h1>
+          </div>
+        </header>
         <div class="stats">
-          <div class="stat"><span class="label">지금 연속</span><span class="v flame" id="bStreak">0일</span></div>
-          <div class="stat"><span class="label">최고 연속</span><span class="v" id="bBest">0일</span></div>
-          <div class="stat"><span class="label">완벽한 날 (전체)</span><span class="v" id="bPerfect">0일</span></div>
-          <div class="stat"><span class="label">끝낸 숙제 (전체)</span><span class="v" id="bHwDone">0개</span></div>
+          <div class="stat"><span class="stat-ico flame"><svg class="ic"><use href="#i-flame"/></svg></span><div><span class="label">지금 연속</span><span class="v" id="bStreak">0일</span></div></div>
+          <div class="stat"><span class="stat-ico"><svg class="ic"><use href="#i-badge"/></svg></span><div><span class="label">최고 연속</span><span class="v" id="bBest">0일</span></div></div>
+          <div class="stat"><span class="stat-ico"><svg class="ic"><use href="#i-check"/></svg></span><div><span class="label">완벽한 날 (전체)</span><span class="v" id="bPerfect">0일</span></div></div>
+          <div class="stat"><span class="stat-ico"><svg class="ic"><use href="#i-today"/></svg></span><div><span class="label">끝낸 숙제 (전체)</span><span class="v" id="bHwDone">0개</span></div></div>
         </div>
-        <p class="label" style="margin:0">숙제가 있는 날에 전부 끝내면 연속 기록이 이어져요. 숙제가 없는 날은 기록이 끊기지 않아요.</p>
+        <p class="label">숙제가 있는 날에 전부 끝내면 연속 기록이 이어져요. 숙제가 없는 날은 기록이 끊기지 않아요.</p>
         <div class="badges" id="badgeGrid"></div>
+      </section>
+
+      <!-- 설정 -->
+      <section class="view" id="view-settings" hidden>
+        <header class="view-head">
+          <div>
+            <p class="eyebrow">내 마음대로 꾸미기</p>
+            <h1>설정</h1>
+          </div>
+        </header>
+        <div class="card">
+          <div class="card-head"><h2><svg class="ic"><use href="#i-palette"/></svg>테마</h2><span class="label" id="themeName"></span></div>
+          <div class="card-body"><div class="themes" id="themeGrid"></div></div>
+        </div>
+        <div class="grid-2 even">
+          <div class="card">
+            <div class="card-head"><h2><svg class="ic"><use href="#i-monitor"/></svg>화면</h2></div>
+            <div class="card-body settings-list">
+              <div class="setting">
+                <div><strong>화면 크기</strong><span class="label">창 크기에 맞춰 자동으로 바뀌고, 여기서 더 키우거나 줄일 수 있어요.</span></div>
+                <div class="seg">
+                  <button class="seg-btn icon" type="button" id="scaleDown" aria-label="작게">−</button>
+                  <span class="seg-val num" id="scaleVal">100%</span>
+                  <button class="seg-btn icon" type="button" id="scaleUp" aria-label="크게">+</button>
+                </div>
+              </div>
+              <div class="setting">
+                <div><strong>단축키</strong><span class="label">크게 <kbd>Ctrl</kbd> <kbd>+</kbd> · 작게 <kbd>Ctrl</kbd> <kbd>-</kbd> · 원래대로 <kbd>Ctrl</kbd> <kbd>0</kbd> · 전체 화면 <kbd>F11</kbd></span></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-head"><h2><svg class="ic"><use href="#i-widget"/></svg>바탕화면 위젯</h2></div>
+            <div class="card-body settings-list">
+              <div class="setting">
+                <div><strong>위젯 켜기</strong><span class="label">오늘 남은 숙제와 다가오는 일을 작은 창으로 띄워요.</span></div>
+                <button class="switch" type="button" role="switch" id="widgetToggle" aria-checked="false" aria-label="위젯 켜기"></button>
+              </div>
+              <div class="setting">
+                <div><strong>항상 위에 표시</strong><span class="label">다른 창 위에 위젯이 떠 있어요.</span></div>
+                <button class="switch" type="button" role="switch" id="widgetOnTop" aria-checked="true" aria-label="항상 위에 표시"></button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="label about"><svg class="ic"><use href="#i-info"/></svg>기록은 이 PC에만 저장돼요. 글꼴: Pretendard (SIL Open Font License)</p>
       </section>
     </main>
   </div>
   <div class="toast" id="toast" role="status" hidden></div>
 
   <script src="logic.js"></script>
+  <script src="themes.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
