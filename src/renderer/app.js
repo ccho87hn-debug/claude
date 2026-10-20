@@ -504,6 +504,7 @@
     document.documentElement.dataset.theme = data.settings.theme;
     $("widgetToggle").setAttribute("aria-checked", String(!!data.settings.widgetOpen));
     $("widgetOnTop").setAttribute("aria-checked", String(data.settings.widgetOnTop !== false));
+    $("autoStart").setAttribute("aria-checked", String(!!data.settings.autoStart));
     const left = L.dayStats(data, TODAY);
     $("navTodayCount").textContent = left.total - left.done || "";
     $("scaleVal").textContent = Math.round((data.settings.uiScale || 1) * 100) + "%";
@@ -799,6 +800,7 @@
   });
   $("widgetToggle").onclick = () => { data.settings.widgetOpen = !data.settings.widgetOpen; save(); };
   $("widgetOnTop").onclick = () => { data.settings.widgetOnTop = data.settings.widgetOnTop === false; save(); };
+  $("autoStart").onclick = () => { data.settings.autoStart = !data.settings.autoStart; save(); };
 
   const normalize = (d) => ({
     ...d,

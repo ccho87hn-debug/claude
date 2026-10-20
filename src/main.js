@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, Menu, screen } = require("electron");
+const { app, BrowserWindow, ipcMain, Menu, Tray, nativeImage, screen } = require("electron");
 const path = require("path");
 const fs = require("fs");
 
@@ -10,12 +10,13 @@ const EMPTY = {
   memos: {},
   planLog: {},
   plannerSubjects: ["국어", "수학", "영어", "과학", "사회"],
-  settings: { theme: "dark", widgetOpen: false, widgetOnTop: true, manageDay: 0, uiScale: 1 },
+  settings: { theme: "dark", widgetOpen: false, widgetOnTop: true, manageDay: 0, uiScale: 1, autoStart: false },
 };
 
 let data = null;
 let mainWin = null;
 let widgetWin = null;
+let tray = null;
 
 function load() {
   try {
@@ -98,9 +99,9 @@ function createMain() {
     if (!mainWin.isMaximized() && !mainWin.isFullScreen()) data.settings.mainBounds = mainWin.getBounds();
     save();
   });
+  // Closing the main window leaves the widget running; the tray icon reopens the app or quits it.
   mainWin.on("closed", () => {
     mainWin = null;
-    if (widgetWin && !widgetWin.isDestroyed()) widgetWin.close();
   });
 }
 
@@ -130,14 +131,51 @@ function createWidget() {
     data.settings.widgetBounds = widgetWin.getBounds();
     save();
   });
+  // Only the user's own close (widget X, tray, settings) turns the widget off. A quit or a
+  // Windows shutdown also closes this window, and the widget should come back next time.
   widgetWin.on("closed", () => {
     widgetWin = null;
-    if (mainWin) {
-      data.settings.widgetOpen = false;
-      save();
-      broadcast();
-    }
+    updateTray();
   });
+  updateTray();
+}
+
+function showMain() {
+  if (!mainWin) createMain();
+  else {
+    if (mainWin.isMinimized()) mainWin.restore();
+    mainWin.show();
+    mainWin.focus();
+  }
+}
+
+function setWidget(open) {
+  data.settings.widgetOpen = open;
+  save();
+  if (open) createWidget();
+  else if (widgetWin) widgetWin.close();
+  broadcast();
+}
+
+// Tray icon: the way back to the app (and the way to quit) while only the widget is open.
+function updateTray() {
+  if (!tray) {
+    tray = new Tray(nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 }));
+    tray.setToolTip("숙제 & 목표");
+    tray.on("click", showMain);
+  }
+  tray.setContextMenu(Menu.buildFromTemplate([
+    { label: "앱 열기", click: showMain },
+    { label: widgetWin ? "위젯 닫기" : "위젯 열기", click: () => setWidget(!widgetWin) },
+    { type: "separator" },
+    { label: "종료", click: () => app.quit() },
+  ]));
+}
+
+// Start with Windows (or macOS login) so the widget comes back after a restart.
+function applyAutoStart() {
+  if (!app.isPackaged) return; // dev runs (npm start) would register the bare Electron binary
+  app.setLoginItemSettings({ openAtLogin: !!data.settings.autoStart, args: ["--hidden"] });
 }
 
 ipcMain.handle("data:get", () => data);
@@ -145,28 +183,24 @@ ipcMain.handle("data:get", () => data);
 ipcMain.on("data:set", (event, next) => {
   const wasOpen = data.settings.widgetOpen;
   const wasOnTop = data.settings.widgetOnTop;
+  const wasAuto = data.settings.autoStart;
   data = next;
   save();
   broadcast(event.sender);
   if (data.settings.widgetOpen && !wasOpen) createWidget();
   if (!data.settings.widgetOpen && wasOpen && widgetWin) widgetWin.close();
   if (widgetWin && data.settings.widgetOnTop !== wasOnTop) widgetWin.setAlwaysOnTop(data.settings.widgetOnTop);
+  if (data.settings.autoStart !== wasAuto) applyAutoStart();
 });
 
-ipcMain.on("widget:close", () => widgetWin && widgetWin.close());
+ipcMain.on("widget:close", () => setWidget(false));
 ipcMain.on("zoom:set", (_e, value) => setScale(value));
-ipcMain.on("main:show", () => {
-  if (!mainWin) createMain();
-  else {
-    if (mainWin.isMinimized()) mainWin.restore();
-    mainWin.focus();
-  }
-});
+ipcMain.on("main:show", showMain);
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
-  app.on("second-instance", () => mainWin && mainWin.focus());
+  app.on("second-instance", showMain);
 
   app.whenReady().then(() => {
     data = load();
@@ -176,7 +210,7 @@ if (!app.requestSingleInstanceLock()) {
         {
           label: "보기",
           submenu: [
-            { label: "위젯 열기", click: () => { data.settings.widgetOpen = true; save(); createWidget(); broadcast(); } },
+            { label: "위젯 열기", click: () => setWidget(true) },
             { type: "separator" },
             { role: "togglefullscreen", label: "전체 화면", accelerator: "F11" },
             { label: "크게", accelerator: "CmdOrCtrl+=", click: () => setScale((data.settings.uiScale || 1) + 0.1) },
@@ -191,8 +225,12 @@ if (!app.requestSingleInstanceLock()) {
         { role: "editMenu", label: "편집" },
       ])
     );
-    createMain();
+    // Started at login: show just the widget if it was on, so the desktop isn't covered by the app.
+    const hidden = process.argv.includes("--hidden");
+    if (!hidden || !data.settings.widgetOpen) createMain();
     if (data.settings.widgetOpen) createWidget();
+    updateTray();
+    applyAutoStart();
 
     app.on("activate", () => {
       if (BrowserWindow.getAllWindows().length === 0) createMain();
