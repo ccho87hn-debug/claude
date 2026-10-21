@@ -98,3 +98,22 @@ test("buySkin takes the price once and refuses what can't be bought", () => {
   assert.ok(RPS.buySkin({ coins: 100, skins: {} }, "lizard").error);
   assert.deepEqual(RPS.buySkin({ coins: 0 }, "classic"), { coins: 0, skins: { classic: true } });
 });
+
+test("settlePot gives the whole pot to whoever backed the winner", () => {
+  const two = RPS.settlePot({ a: { rock: 0, paper: 100, scissors: 0 }, b: { rock: 0, paper: 0, scissors: 100 } }, "scissors");
+  assert.deepEqual(two.a, { total: 100, returned: 0, delta: -100, won: false });
+  assert.deepEqual(two.b, { total: 100, returned: 200, delta: 100, won: true });
+  // two winners split by what they put on the winner
+  const three = RPS.settlePot({ a: { rock: 0, paper: 300, scissors: 0 }, b: { rock: 0, paper: 0, scissors: 100 }, c: { rock: 0, paper: 0, scissors: 200 } }, "scissors");
+  assert.equal(three.b.returned, 200);
+  assert.equal(three.c.returned, 400);
+  // everyone on the same side just shares their own coins back
+  const same = RPS.settlePot({ a: { rock: 50, paper: 0, scissors: 0 }, b: { rock: 150, paper: 0, scissors: 0 } }, "rock");
+  assert.deepEqual([same.a.returned, same.b.returned], [50, 150]);
+  // nobody backed the winner: all refunded
+  const none = RPS.settlePot({ a: { rock: 50, paper: 0, scissors: 0 } }, "paper");
+  assert.deepEqual(none.a, { total: 50, returned: 50, delta: 0, won: false });
+  // rounding never loses coins
+  const odd = RPS.settlePot({ a: { rock: 1, paper: 0, scissors: 0 }, b: { rock: 1, paper: 0, scissors: 0 }, c: { rock: 0, paper: 1, scissors: 0 }, d: { rock: 1, paper: 0, scissors: 0 } }, "rock");
+  assert.equal(Object.values(odd).reduce((s, r) => s + r.returned, 0), 4);
+});

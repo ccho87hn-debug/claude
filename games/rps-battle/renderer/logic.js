@@ -74,6 +74,31 @@
     return { total, returned, delta: returned - total, won: returned > 0 };
   }
 
+  // Online rounds are a shared pot: every coin bet goes in, and whoever backed the winner splits it all,
+  // in proportion to what they put on the winner. If nobody backed the winner, everyone gets their coins back.
+  // `slips` is { playerId: slip }; returns { playerId: { total, returned, delta, won } }.
+  function settlePot(slips, winner) {
+    const ids = Object.keys(slips);
+    const pot = ids.reduce((s, id) => s + slipTotal(slips[id]), 0);
+    const backed = ids.reduce((s, id) => s + (slips[id][winner] || 0), 0);
+    const out = {};
+    let paid = 0;
+    for (const id of ids) {
+      const total = slipTotal(slips[id]);
+      const on = slips[id][winner] || 0;
+      const returned = backed ? Math.floor((pot * on) / backed) : total;
+      paid += returned;
+      out[id] = { total, returned, delta: returned - total, won: on > 0 };
+    }
+    // Rounding leftovers go to the biggest winner (first in order on a tie) so no coin disappears.
+    if (backed && pot > paid) {
+      const top = ids.reduce((a, b) => ((slips[b][winner] || 0) > (slips[a][winner] || 0) ? b : a));
+      out[top].returned += pot - paid;
+      out[top].delta += pot - paid;
+    }
+    return out;
+  }
+
   // Room codes skip look-alike characters (0/O, 1/I/L) so they are easy to read out loud.
   const CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
   function makeRoomCode(rand = Math.random) {
@@ -125,7 +150,7 @@
     return left.size === 1 ? [...left][0] : null;
   }
 
-  const api = { TYPES, BEATS, NAMES, EMOJI, clash, odds, payout, emptySlip, slipTotal, cleanSlip, validateSlip, quickAmount, randomLineup, LINEUP_MIN, LINEUP_MAX, settle, makeRoomCode, normalizeCode, packUnits, unpackUnits, SKINS, skinById, buySkin, survivors };
+  const api = { TYPES, BEATS, NAMES, EMOJI, clash, odds, payout, emptySlip, slipTotal, cleanSlip, validateSlip, quickAmount, randomLineup, LINEUP_MIN, LINEUP_MAX, settle, settlePot, makeRoomCode, normalizeCode, packUnits, unpackUnits, SKINS, skinById, buySkin, survivors };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RPS = api;
 })(this);

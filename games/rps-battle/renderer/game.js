@@ -1,4 +1,4 @@
-const { TYPES, NAMES, SKINS, skinById, buySkin, clash, odds, payout, emptySlip, slipTotal, cleanSlip, validateSlip, quickAmount, randomLineup, settle, normalizeCode, packUnits, unpackUnits, survivors } = window.RPS;
+const { TYPES, NAMES, SKINS, skinById, buySkin, clash, odds, payout, emptySlip, slipTotal, cleanSlip, validateSlip, quickAmount, randomLineup, settle, settlePot, normalizeCode, packUnits, unpackUnits, survivors } = window.RPS;
 
 // ---------- Arena constants (logical units; the canvas scales them to fit) ----------
 const W = 900;
@@ -167,10 +167,12 @@ function refreshRoom() {
   $("roomWait").classList.toggle("hidden", mode !== "guest");
 }
 
-// Everyone's bets in this room (online only).
+// Everyone's bets in this room (online only). Until the battle starts, other players only show as ready.
 function betRows() {
+  const secret = phase === "betting";
   return members.map((m) => {
     const b = roomBets[m.id];
+    if (b && secret && m.id !== myId) return el("div", { className: "room-bet ready" }, el("b", { textContent: m.name }), el("span", { textContent: "✅ 준비 완료" }));
     const sides = b && !b.watch ? TYPES.filter((t) => b.slip[t] > 0) : [];
     const what = !b ? "고르는 중..." : b.watch ? "👀 구경" : sides.map((t) => `${glyph(t)} ${b.slip[t].toLocaleString()}`).join(" · ");
     return el("div", { className: "room-bet " + (sides.length === 1 ? sides[0] : b ? "ready" : "") }, el("b", { textContent: m.name }), el("span", { textContent: what }));
@@ -185,7 +187,7 @@ function refreshBet() {
   for (const btn of document.querySelectorAll(".pick")) {
     const t = btn.dataset.type;
     const o = odds(lineup, t);
-    btn.querySelector(".odds").textContent = o ? `x${o}` : "-";
+    btn.querySelector(".odds").textContent = !o ? "-" : mode === "solo" ? `x${o}` : "";
     btn.querySelector(".stake").textContent = slip[t] ? `🪙 ${slip[t].toLocaleString()}` : "";
     btn.disabled = !o || locked;
     btn.classList.toggle("selected", t === focus);
@@ -203,6 +205,7 @@ function refreshBet() {
   if (locked) hint.textContent = roomBets[myId] && roomBets[myId].watch ? "구경하기로 했어요. 방장이 곧 시작해요." : "다 준비되면 방장이 배틀을 시작해요.";
   else if (total === 0) hint.textContent = "여러 곳에 나눠 걸 수도 있어요.";
   else if (err) hint.textContent = err;
+  else if (mode !== "solo") hint.textContent = `합계 🪙 ${total.toLocaleString()} · 맞힌 사람끼리 판돈을 다 나눠 가져요`;
   else {
     const wins = TYPES.filter((t) => slip[t] > 0).map((t) => `${glyph(t)} 이기면 🪙 ${payout(slip[t], lineup, t).toLocaleString()}`);
     hint.textContent = `합계 🪙 ${total.toLocaleString()} · ` + wins.join(" / ");
@@ -332,19 +335,30 @@ function go() {
   lastSnap = 0;
   beep(1040, 0.15, "sine");
   showPanel("livePanel");
-  $("liveBet").innerHTML = !betting
+  const slips = potSlips();
+  const pot = Object.values(slips).reduce((n, sl) => n + slipTotal(sl), 0);
+  const win = (t) => (mode === "solo" ? payout(mine.slip[t], lineup, t) : settlePot(slips, t)[myId].returned);
+  $("liveBet").innerHTML = (mode === "solo" ? "" : `판돈 🪙 ${pot.toLocaleString()}<br>`) + (!betting
     ? "이번 판은 구경 중이에요."
     : TYPES.filter((t) => mine.slip[t] > 0)
-      .map((t) => `${glyph(t)} <b>${NAMES[t]}</b> 🪙 ${mine.slip[t].toLocaleString()} → 이기면 🪙 ${payout(mine.slip[t], lineup, t).toLocaleString()}`)
-      .join("<br>");
+      .map((t) => `${glyph(t)} <b>${NAMES[t]}</b> 🪙 ${mine.slip[t].toLocaleString()} → 이기면 🪙 ${win(t).toLocaleString()}`)
+      .join("<br>"));
   $("liveBets").replaceChildren(...(mode === "solo" ? [] : betRows()));
   $("speedRow").classList.toggle("hidden", mode === "guest");
   refreshWallet();
 }
 
+// Online: every player's slip that went into the pot this round.
+function potSlips() {
+  const out = {};
+  for (const [id, b] of Object.entries(roomBets)) if (b && b.slip) out[id] = b.slip;
+  return out;
+}
+
 function outcomeText(r) {
   if (!r) return "구경";
-  if (r.won && r.delta >= 0) return `+🪙 ${r.delta.toLocaleString()}`;
+  if (r.delta === 0) return "±🪙 0";
+  if (r.delta > 0) return `+🪙 ${r.delta.toLocaleString()}`;
   return `-🪙 ${(-r.delta).toLocaleString()}`;
 }
 
@@ -353,11 +367,17 @@ function finishRound(winner) {
   if (mode === "host") room.send({ t: "end", winner });
   for (const u of units) u.type = winner;
   const mine = roomBets[myId];
-  const r = mine && !mine.watch ? settle(mine.slip, lineup, winner) : null;
+  const pot = mode === "solo" ? null : settlePot(potSlips(), winner);
+  const outcome = (id) => {
+    const b = roomBets[id];
+    if (!b || b.watch) return null;
+    return pot ? pot[id] : settle(b.slip, lineup, winner);
+  };
+  const r = outcome(myId);
   staked = 0;
   if (r) {
     save.coins += r.returned;
-    if (r.delta > 0) { save.wins++; save.best = Math.max(save.best, r.delta); } else save.losses++;
+    if (r.delta > 0) { save.wins++; save.best = Math.max(save.best, r.delta); } else if (r.delta < 0) save.losses++;
     persist();
   }
   refreshWallet();
@@ -368,13 +388,13 @@ function finishRound(winner) {
   rc.className = "result-coins " + (r && r.delta > 0 ? "win" : "lose");
   if (!r) rc.textContent = "구경 끝!";
   else if (r.delta > 0) rc.textContent = `적중! +🪙 ${r.delta.toLocaleString()}`;
+  else if (r.delta === 0) rc.textContent = "본전! 🪙 그대로";
   else if (r.won) rc.textContent = `적중했지만 -🪙 ${(-r.delta).toLocaleString()}`;
   else rc.textContent = `꽝! -🪙 ${r.total.toLocaleString()}`;
   // Everyone else's outcome, online only.
   const others = mode === "solo" ? [] : members.filter((m) => m.id !== myId && roomBets[m.id]);
   $("resultLines").replaceChildren(...others.map((m) => {
-    const b = roomBets[m.id];
-    const o = b.watch ? null : settle(b.slip, lineup, winner);
+    const o = outcome(m.id);
     return el("div", { className: "result-line " + (!o ? "" : o.delta > 0 ? "win" : "lose") },
       el("b", { textContent: m.name }), el("span", { textContent: outcomeText(o) }));
   }));
@@ -541,7 +561,7 @@ const handlers = {
   onMessage: (from, msg) => (mode === "host" ? hostReceive(from, msg) : guestReceive(msg)),
   onLeave: (id) => {
     members = members.filter((m) => m.id !== id);
-    delete roomBets[id];
+    if (phase !== "running") delete roomBets[id]; // once the battle is on, a leaver's coins stay in the pot
     broadcastMembers();
     if (phase === "betting") refreshBet();
   },
@@ -615,6 +635,16 @@ function broadcastMembers() {
   refreshRoom();
 }
 
+// While betting, each guest only learns who is ready, never where or how much the others bet.
+function sendBets() {
+  for (const m of members) {
+    if (m.id === myId) continue;
+    const view = {};
+    for (const [id, b] of Object.entries(roomBets)) view[id] = id === m.id ? b : { ready: true };
+    room.sendTo(m.id, { t: "bets", bets: view });
+  }
+}
+
 function hostReceive(from, msg) {
   if (msg.t === "hello") {
     if (members.some((m) => m.id === from)) return;
@@ -624,7 +654,7 @@ function hostReceive(from, msg) {
     // Late joiners can still bet on a round that is being bet on.
     if (phase === "betting") {
       room.sendTo(from, { t: "reveal", lineup, u: packUnits(units) });
-      room.sendTo(from, { t: "bets", bets: roomBets });
+      sendBets();
       refreshBet();
     }
   } else if (msg.t === "bet" && phase === "betting") {
@@ -634,11 +664,11 @@ function hostReceive(from, msg) {
       if (!slipTotal(s) || TYPES.some((t) => s[t] > 0 && !odds(lineup, t))) return;
       roomBets[from] = { slip: s };
     }
-    room.send({ t: "bets", bets: roomBets });
+    sendBets();
     refreshBet();
   } else if (msg.t === "unbet" && phase === "betting") {
     delete roomBets[from];
-    room.send({ t: "bets", bets: roomBets });
+    sendBets();
     refreshBet();
   }
 }
