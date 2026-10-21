@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https://*.googleapis.com https://0.peerjs.com wss://0.peerjs.com http://localhost:* ws://localhost:*">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https://*.googleapis.com https://*.firebasedatabase.app wss://*.firebasedatabase.app https://*.firebaseio.com wss://*.firebaseio.com https://0.peerjs.com wss://0.peerjs.com http://localhost:* ws://localhost:*">
   <title>가위바위보 배틀 베팅</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -159,7 +159,7 @@
   <script src="vendor/peerjs.min.js"></script>
   <script src="vendor/firebase-app-compat.js"></script>
   <script src="vendor/firebase-auth-compat.js"></script>
-  <script src="vendor/firebase-firestore-compat.js"></script>
+  <script src="vendor/firebase-database-compat.js"></script>
   <script src="account.js"></script>
   <script src="logic.js"></script>
   <script src="net.js"></script>

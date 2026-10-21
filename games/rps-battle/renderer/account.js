@@ -1,5 +1,5 @@
 // Player accounts on Firebase: sign up / log in with a nickname and password, and keep coins and
-// the win/loss record in Firestore (users/{uid}) so they follow the player to any computer.
+// the win/loss record in the Realtime Database (users/{uid}) so they follow the player to any computer.
 (function () {
   const firebaseConfig = {
     apiKey: "AIzaSyCL5Da4204mDC2M4xB7ebVZg89jvKwp5D0",
@@ -8,6 +8,7 @@
     storageBucket: "gawi-bawi-bo.firebasestorage.app",
     messagingSenderId: "80984345707",
     appId: "1:80984345707:web:1ff0137522815c6c5b752e",
+    databaseURL: "https://gawi-bawi-bo-default-rtdb.asia-southeast1.firebasedatabase.app",
   };
   const START_COINS = 1000;
   // Firebase signs people in by email, so each nickname maps to a made-up address nobody receives mail at.
@@ -22,7 +23,7 @@
     if (auth) return;
     firebase.initializeApp(firebaseConfig);
     auth = firebase.auth();
-    db = firebase.firestore();
+    db = firebase.database();
   }
 
   function toEmail(name) {
@@ -41,8 +42,8 @@
     "auth/network-request-failed": "인터넷 연결을 확인해 주세요.",
     "auth/operation-not-allowed": "Firebase에서 이메일/비밀번호 로그인이 꺼져 있어요.",
     "auth/configuration-not-found": "Firebase에서 Authentication이 아직 켜지지 않았어요.",
-    "permission-denied": "Firebase Firestore 규칙이 아직 설정되지 않았어요.",
-    unavailable: "인터넷 연결을 확인해 주세요.",
+    timeout: "기록 서버에 접속하지 못했어요. 인터넷 연결을 확인하고 다시 해 주세요.",
+    PERMISSION_DENIED: "Firebase Realtime Database 규칙이 아직 설정되지 않았어요.",
   };
   const friendly = (err) => new Error(ERRORS[err && err.code] || "로그인 서버에 문제가 생겼어요. 잠시 후 다시 해 주세요.");
 
@@ -52,15 +53,20 @@
     return "";
   }
 
-  const userDoc = () => db.collection("users").doc(uid);
+  const userRef = () => db.ref(`users/${uid}`);
+
+  // The database waits quietly while offline, so give up after a while instead of spinning forever.
+  function withTimeout(promise, ms = 12000) {
+    return Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject({ code: "timeout" }), ms))]);
+  }
 
   // Reads the signed-in player's profile, creating it on first sign-in.
   async function loadProfile(name) {
-    const ref = userDoc();
-    const snap = await ref.get();
-    if (snap.exists) return snap.data();
+    const ref = userRef();
+    const snap = await withTimeout(ref.get());
+    if (snap.exists()) return snap.val();
     const profile = { name, coins: START_COINS, wins: 0, losses: 0, best: 0 };
-    await ref.set({ ...profile, created: firebase.firestore.FieldValue.serverTimestamp() });
+    await withTimeout(ref.set({ ...profile, created: firebase.database.ServerValue.TIMESTAMP }));
     return profile;
   }
 
@@ -117,8 +123,8 @@
   let pending = Promise.resolve();
   function save({ coins, wins, losses, best }) {
     if (!uid) return pending;
-    const ref = userDoc();
-    pending = pending.then(() => ref.set({ coins, wins, losses, best }, { merge: true })).catch((e) => console.error("save failed", e));
+    const ref = userRef();
+    pending = pending.then(() => ref.update({ coins, wins, losses, best })).catch((e) => console.error("save failed", e));
     return pending;
   }
 

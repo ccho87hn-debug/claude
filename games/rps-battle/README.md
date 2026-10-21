@@ -12,9 +12,9 @@
 
 ## 회원가입·로그인
 
-아이디(한글·영어·숫자 2~10자)와 비밀번호(6자 이상)로 가입하면 코인과 전적이 Firebase(프로젝트 `gawi-bawi-bo`)에 저장돼서, 어느 컴퓨터에서 로그인해도 그대로예요. 로그인 없이 하면 코인은 그 컴퓨터에만 저장돼요.
+아이디(한글·영어·숫자 2~10자)와 비밀번호(6자 이상)로 가입하면 코인과 전적이 Firebase(프로젝트 `gawi-bawi-bo`)의 Realtime Database에 저장돼서, 어느 컴퓨터에서 로그인해도 그대로예요. 로그인 없이 하면 코인은 그 컴퓨터에만 저장돼요.
 
-Firebase 콘솔에서 Authentication의 이메일/비밀번호 로그인을 켜고, Firestore 규칙에 `firestore.rules` 내용을 넣어야 동작해요.
+Firebase 콘솔에서 Authentication의 이메일/비밀번호 로그인을 켜고, Realtime Database 규칙에 `database.rules.json` 내용을 넣어야 동작해요. 각자 자기 코인과 전적만 읽고 바꿀 수 있고, 아이디 이름은 못 바꿔요.
 
 ## 친구랑 같이 하기 (다른 컴퓨터)
 
