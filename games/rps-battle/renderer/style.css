@@ -236,3 +236,13 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .result-actions { display: flex; gap: 8px; justify-content: center; }
 
 .pick:disabled.selected { opacity: 1; }
+
+.pick .stake { font-size: 13px; min-height: 16px; color: var(--text); }
+.pick.rock.staked { border-color: #ff5a4e88; }
+.pick.paper.staked { border-color: #3d9bff88; }
+.pick.scissors.staked { border-color: #3fd46f88; }
+.pick.selected { box-shadow: 0 0 0 3px #ffffff33; }
+.bet-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; margin-top: 6px; }
+.bet-actions button { padding: 14px 8px; font-size: 16px; font-weight: 700; }
+.bet-actions button.hidden + button { grid-column: 1 / -1; }
+.room-bet.ready { border-left-color: var(--muted); }

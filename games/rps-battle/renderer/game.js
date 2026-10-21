@@ -1,4 +1,4 @@
-const { TYPES, NAMES, EMOJI, clash, odds, payout, validate, randomLineup, settle, normalizeCode, packUnits, unpackUnits, survivors } = window.RPS;
+const { TYPES, NAMES, EMOJI, clash, odds, payout, emptySlip, slipTotal, cleanSlip, validateSlip, quickAmount, randomLineup, settle, normalizeCode, packUnits, unpackUnits, survivors } = window.RPS;
 
 // ---------- Arena constants (logical units; the canvas scales them to fit) ----------
 const W = 900;
@@ -44,7 +44,8 @@ let phase = "idle";
 let units = [];
 let particles = [];
 let lineup = null;
-let pick = null; // my choice while betting
+let slip = emptySlip(); // my coins per side while betting
+let focus = null; // the side the amount box is editing
 let clock = 0;
 let countdown = 0;
 let revealAt = 0; // time the lineup was revealed, for the pop-in animation and banner
@@ -57,8 +58,8 @@ let mode = "solo"; // solo | host | guest
 let room = null; // Net.Room while online
 let myId = "host"; // the host (and a solo player) is always "host"; guests use their peer id
 let members = []; // [{ id, name }]
-let roomBets = {}; // id -> { pick, bet } confirmed this round
-let locked = false; // a guest has sent their bet
+let roomBets = {}; // id -> { slip } or { watch: true }, once that player is ready this round
+let locked = false; // a guest has sent their bet (or chose to watch)
 let staked = 0; // coins taken from my wallet this round, refunded if the room drops before the end
 let lastSnap = 0;
 
@@ -135,8 +136,9 @@ function refreshRoom() {
 function betRows() {
   return members.map((m) => {
     const b = roomBets[m.id];
-    const what = !b ? "고르는 중..." : `${EMOJI[b.pick]} ${NAMES[b.pick]} · ` + (b.bet ? `🪙 ${b.bet.toLocaleString()}` : "구경");
-    return el("div", { className: "room-bet " + (b ? b.pick : "") }, el("b", { textContent: m.name }), el("span", { textContent: what }));
+    const sides = b && !b.watch ? TYPES.filter((t) => b.slip[t] > 0) : [];
+    const what = !b ? "고르는 중..." : b.watch ? "👀 구경" : sides.map((t) => `${EMOJI[t]} ${b.slip[t].toLocaleString()}`).join(" · ");
+    return el("div", { className: "room-bet " + (sides.length === 1 ? sides[0] : b ? "ready" : "") }, el("b", { textContent: m.name }), el("span", { textContent: what }));
   });
 }
 
@@ -146,30 +148,44 @@ function refreshBet() {
   $("lPaper").textContent = lineup.paper;
   $("lScissors").textContent = lineup.scissors;
   for (const btn of document.querySelectorAll(".pick")) {
-    const o = odds(lineup, btn.dataset.type);
+    const t = btn.dataset.type;
+    const o = odds(lineup, t);
     btn.querySelector(".odds").textContent = o ? `x${o}` : "-";
+    btn.querySelector(".stake").textContent = slip[t] ? `🪙 ${slip[t].toLocaleString()}` : "";
     btn.disabled = !o || locked;
-    btn.classList.toggle("selected", btn.dataset.type === pick);
+    btn.classList.toggle("selected", t === focus);
+    btn.classList.toggle("staked", slip[t] > 0);
   }
-  document.querySelectorAll(".bet input, .bet button").forEach((e) => (e.disabled = locked));
-  const b = Math.floor(+$("betAmount").value);
-  const err = validate({ counts: lineup, pick, bet: b, coins: save.coins });
-  const hint = $("hint");
-  hint.classList.toggle("warn", !!err && !locked);
-  if (locked) hint.textContent = "다른 사람들이 다 걸면 방장이 배틀을 시작해요.";
-  else if (err) hint.textContent = err;
-  else if (b === 0) hint.textContent = "0코인이면 구경만 해요.";
-  else hint.textContent = `이기면 🪙 ${payout(b, lineup, pick).toLocaleString()} 받아요.`;
+  $("amountTitle").textContent = focus ? `${EMOJI[focus]} ${NAMES[focus]}에 걸 코인` : "위에서 걸 곳을 먼저 눌러요";
+  const amount = $("betAmount");
+  if (document.activeElement !== amount) amount.value = focus ? slip[focus] : "";
+  document.querySelectorAll(".bet input, .bet button").forEach((e) => (e.disabled = locked || !focus));
 
-  const start = $("start");
+  const total = slipTotal(slip);
+  const err = validateSlip({ counts: lineup, slip, coins: save.coins });
+  const hint = $("hint");
+  hint.classList.toggle("warn", !!err && total > 0 && !locked);
+  if (locked) hint.textContent = roomBets[myId] && roomBets[myId].watch ? "구경하기로 했어요. 방장이 곧 시작해요." : "다 준비되면 방장이 배틀을 시작해요.";
+  else if (total === 0) hint.textContent = "여러 곳에 나눠 걸 수도 있어요.";
+  else if (err) hint.textContent = err;
+  else {
+    const wins = TYPES.filter((t) => slip[t] > 0).map((t) => `${EMOJI[t]} 이기면 🪙 ${payout(slip[t], lineup, t).toLocaleString()}`);
+    hint.textContent = `합계 🪙 ${total.toLocaleString()} · ` + wins.join(" / ");
+  }
+
+  const start = $("start"), watch = $("watch");
   if (mode === "guest") {
-    start.textContent = locked ? "걸었어요 ✓" : "이걸로 걸기";
-    start.disabled = locked || !!err;
+    start.textContent = locked ? "다시 고르기" : "이걸로 걸기";
+    start.disabled = !locked && !!err;
+    watch.classList.toggle("hidden", locked);
   } else {
     const others = members.filter((m) => m.id !== myId);
-    const ready = others.filter((m) => roomBets[m.id]).length;
-    start.textContent = others.length ? `배틀 시작! (친구 ${ready}/${others.length}명 걸었어요)` : "배틀 시작!";
-    start.disabled = !!err;
+    const waiting = others.filter((m) => !roomBets[m.id]).length;
+    start.textContent = waiting ? `친구 ${waiting}명이 아직 고르는 중...` : "배틀 시작!";
+    start.disabled = waiting > 0 || !!err;
+    watch.textContent = mode === "solo" ? "구경하기" : "구경하면서 시작";
+    watch.disabled = waiting > 0;
+    watch.classList.remove("hidden");
   }
   const list = $("roomBets");
   list.classList.toggle("hidden", mode === "solo");
@@ -200,7 +216,8 @@ function beginCountdown() {
   units = [];
   particles = [];
   lineup = null;
-  pick = null;
+  slip = emptySlip();
+  focus = null;
   roomBets = {};
   locked = false;
   staked = 0;
@@ -230,23 +247,49 @@ function enterBetting() {
   updateHud();
 }
 
+// Start (solo/host) or send my slip (guest). A locked guest presses it again to change their mind.
 function onStartClick() {
-  const bet = Math.floor(+$("betAmount").value);
-  if (validate({ counts: lineup, pick, bet, coins: save.coins })) return;
   if (mode === "guest") {
-    locked = true;
-    room.send({ t: "bet", pick, bet });
+    if (locked) {
+      locked = false;
+      room.send({ t: "unbet" });
+    } else {
+      if (validateSlip({ counts: lineup, slip, coins: save.coins })) return;
+      locked = true;
+      room.send({ t: "bet", slip });
+    }
     refreshBet();
     return;
   }
-  roomBets[myId] = { pick, bet };
+  if (validateSlip({ counts: lineup, slip, coins: save.coins }) || !everyoneReady()) return;
+  roomBets[myId] = { slip: { ...slip } };
+  launch();
+}
+
+function onWatchClick() {
+  if (mode === "guest") {
+    locked = true;
+    room.send({ t: "bet", watch: true });
+    roomBets[myId] = { watch: true };
+    refreshBet();
+    return;
+  }
+  if (!everyoneReady()) return;
+  roomBets[myId] = { watch: true };
+  launch();
+}
+
+const everyoneReady = () => members.every((m) => m.id === myId || roomBets[m.id]);
+
+function launch() {
   if (room) room.send({ t: "go", bets: roomBets });
   go();
 }
 
 function go() {
   const mine = roomBets[myId];
-  staked = mine ? mine.bet : 0;
+  const betting = mine && !mine.watch;
+  staked = betting ? slipTotal(mine.slip) : 0;
   save.coins -= staked;
   persist();
   phase = "running";
@@ -254,14 +297,20 @@ function go() {
   lastSnap = 0;
   beep(1040, 0.15, "sine");
   showPanel("livePanel");
-  $("liveBet").innerHTML = !mine
+  $("liveBet").innerHTML = !betting
     ? "이번 판은 구경 중이에요."
-    : mine.bet
-      ? `${EMOJI[mine.pick]} <b>${NAMES[mine.pick]}</b>에 🪙 ${mine.bet.toLocaleString()} 걸었어요<br>배당 x${odds(lineup, mine.pick)} · 이기면 🪙 ${payout(mine.bet, lineup, mine.pick).toLocaleString()}`
-      : `${EMOJI[mine.pick]} <b>${NAMES[mine.pick]}</b> 응원 중 (구경 모드)`;
+    : TYPES.filter((t) => mine.slip[t] > 0)
+      .map((t) => `${EMOJI[t]} <b>${NAMES[t]}</b> 🪙 ${mine.slip[t].toLocaleString()} → 이기면 🪙 ${payout(mine.slip[t], lineup, t).toLocaleString()}`)
+      .join("<br>");
   $("liveBets").replaceChildren(...(mode === "solo" ? [] : betRows()));
   $("speedRow").classList.toggle("hidden", mode === "guest");
   refreshWallet();
+}
+
+function outcomeText(r) {
+  if (!r) return "구경";
+  if (r.won && r.delta >= 0) return `+🪙 ${r.delta.toLocaleString()}`;
+  return `-🪙 ${(-r.delta).toLocaleString()}`;
 }
 
 function finishRound(winner) {
@@ -269,13 +318,11 @@ function finishRound(winner) {
   if (mode === "host") room.send({ t: "end", winner });
   for (const u of units) u.type = winner;
   const mine = roomBets[myId];
-  const r = mine ? settle(mine, lineup, winner) : null;
+  const r = mine && !mine.watch ? settle(mine.slip, lineup, winner) : null;
   staked = 0;
   if (r) {
     save.coins += r.returned;
-    if (mine.bet > 0) {
-      if (r.won) { save.wins++; save.best = Math.max(save.best, r.delta); } else save.losses++;
-    }
+    if (r.delta > 0) { save.wins++; save.best = Math.max(save.best, r.delta); } else save.losses++;
     persist();
   }
   refreshWallet();
@@ -283,23 +330,24 @@ function finishRound(winner) {
   $("resultEmoji").textContent = EMOJI[winner];
   $("resultTitle").textContent = `${NAMES[winner]} 최종 승리!`;
   const rc = $("resultCoins");
-  rc.className = "result-coins " + (r && r.won ? "win" : "lose");
+  rc.className = "result-coins " + (r && r.delta > 0 ? "win" : "lose");
   if (!r) rc.textContent = "구경 끝!";
-  else if (mine.bet === 0) rc.textContent = r.won ? "응원 성공! 🎉" : "아쉽네요!";
-  else rc.textContent = r.won ? `적중! +🪙 ${r.delta.toLocaleString()}` : `꽝! -🪙 ${mine.bet.toLocaleString()}`;
+  else if (r.delta > 0) rc.textContent = `적중! +🪙 ${r.delta.toLocaleString()}`;
+  else if (r.won) rc.textContent = `적중했지만 -🪙 ${(-r.delta).toLocaleString()}`;
+  else rc.textContent = `꽝! -🪙 ${r.total.toLocaleString()}`;
   // Everyone else's outcome, online only.
   const others = mode === "solo" ? [] : members.filter((m) => m.id !== myId && roomBets[m.id]);
   $("resultLines").replaceChildren(...others.map((m) => {
     const b = roomBets[m.id];
-    const o = settle(b, lineup, winner);
-    const text = b.bet === 0 ? (o.won ? "응원 성공" : "아쉽네요") : o.won ? `+🪙 ${o.delta.toLocaleString()}` : `-🪙 ${b.bet.toLocaleString()}`;
-    return el("div", { className: "result-line " + (o.won ? "win" : "lose") }, el("b", { textContent: m.name }), el("span", { textContent: `${EMOJI[b.pick]} ${text}` }));
+    const o = b.watch ? null : settle(b.slip, lineup, winner);
+    return el("div", { className: "result-line " + (!o ? "" : o.delta > 0 ? "win" : "lose") },
+      el("b", { textContent: m.name }), el("span", { textContent: outcomeText(o) }));
   }));
   $("again").classList.toggle("hidden", mode === "guest");
   $("resultWait").classList.toggle("hidden", mode !== "guest");
   $("result").classList.remove("hidden");
-  const won = r && r.won;
-  beep(won ? 880 : 220, 0.25, won ? "triangle" : "sawtooth");
+  const good = r && r.delta > 0;
+  beep(good ? 880 : 220, 0.25, good ? "triangle" : "sawtooth");
 }
 
 // ---------- Lobby and rooms ----------
@@ -414,9 +462,16 @@ function hostReceive(from, msg) {
       refreshBet();
     }
   } else if (msg.t === "bet" && phase === "betting") {
-    const bet = Math.floor(+msg.bet);
-    if (!TYPES.includes(msg.pick) || !odds(lineup, msg.pick) || !(bet >= 0)) return;
-    roomBets[from] = { pick: msg.pick, bet };
+    if (msg.watch) roomBets[from] = { watch: true };
+    else {
+      const s = cleanSlip(msg.slip);
+      if (!slipTotal(s) || TYPES.some((t) => s[t] > 0 && !odds(lineup, t))) return;
+      roomBets[from] = { slip: s };
+    }
+    room.send({ t: "bets", bets: roomBets });
+    refreshBet();
+  } else if (msg.t === "unbet" && phase === "betting") {
+    delete roomBets[from];
     room.send({ t: "bets", bets: roomBets });
     refreshBet();
   }
@@ -449,7 +504,6 @@ function guestReceive(msg) {
     case "go":
       if (!lineup) return;
       roomBets = msg.bets || {};
-      if (roomBets[myId]) pick = roomBets[myId].pick;
       go();
       break;
     case "snap":
@@ -770,17 +824,30 @@ function frame(t) {
 }
 
 // ---------- Wiring ----------
-$("betAmount").addEventListener("input", refreshBet);
-for (const btn of document.querySelectorAll(".pick")) {
-  btn.addEventListener("click", () => { pick = btn.dataset.type; refreshBet(); });
+const others = () => slipTotal(slip) - (slip[focus] || 0);
+function setStake(n) {
+  if (!focus) return;
+  slip[focus] = Math.max(0, Math.min(Math.floor(n) || 0, save.coins - others()));
+  refreshBet();
 }
-document.querySelectorAll("[data-add]").forEach((b) =>
-  b.addEventListener("click", () => {
-    $("betAmount").value = Math.min(save.coins, Math.floor(+$("betAmount").value || 0) + +b.dataset.add);
+$("betAmount").addEventListener("input", () => {
+  if (!focus) return;
+  slip[focus] = Math.max(0, Math.floor(+$("betAmount").value) || 0);
+  refreshBet();
+});
+$("betAmount").addEventListener("blur", () => setStake(slip[focus]));
+for (const btn of document.querySelectorAll(".pick")) {
+  btn.addEventListener("click", () => {
+    focus = btn.dataset.type;
+    if (!slip[focus]) setStake(100); // a first tap on a side puts 100 on it; "0" takes it off
     refreshBet();
-  }));
-document.querySelector("[data-half]").addEventListener("click", () => { $("betAmount").value = Math.floor(save.coins / 2); refreshBet(); });
-document.querySelector("[data-all]").addEventListener("click", () => { $("betAmount").value = save.coins; refreshBet(); });
+  });
+}
+document.querySelectorAll("[data-add]").forEach((b) => b.addEventListener("click", () => setStake(slip[focus] + +b.dataset.add)));
+document.querySelectorAll("[data-share]").forEach((b) =>
+  b.addEventListener("click", () => setStake(quickAmount(b.dataset.share, save.coins, others()))));
+document.querySelector("[data-clear]").addEventListener("click", () => setStake(0));
+$("watch").addEventListener("click", onWatchClick);
 $("solo").addEventListener("click", playSolo);
 $("hostRoom").addEventListener("click", hostRoom);
 $("joinRoom").addEventListener("click", joinRoom);
@@ -808,7 +875,6 @@ new ResizeObserver(resize).observe(canvas);
 buildSprites();
 resize();
 $("myName").value = save.name || "";
-if (+$("betAmount").value > save.coins) $("betAmount").value = save.coins;
 refreshWallet();
 updateHud();
 requestAnimationFrame(frame);

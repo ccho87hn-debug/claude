@@ -93,25 +93,30 @@
         <div class="lineup-row scissors"><span>✌️ 가위</span><b id="lScissors">0</b></div>
       </div>
 
-      <h2>누가 이길까?</h2>
+      <h2>어디에 걸까? (여러 곳에 나눠 걸어도 돼요)</h2>
       <div class="picks">
-        <button class="pick rock" data-type="rock">✊<span>바위</span><em class="odds">x0</em></button>
-        <button class="pick paper" data-type="paper">✋<span>보자기</span><em class="odds">x0</em></button>
-        <button class="pick scissors" data-type="scissors">✌️<span>가위</span><em class="odds">x0</em></button>
+        <button class="pick rock" data-type="rock">✊<span>바위</span><em class="odds">x0</em><strong class="stake"></strong></button>
+        <button class="pick paper" data-type="paper">✋<span>보자기</span><em class="odds">x0</em><strong class="stake"></strong></button>
+        <button class="pick scissors" data-type="scissors">✌️<span>가위</span><em class="odds">x0</em><strong class="stake"></strong></button>
       </div>
 
-      <h2>코인 걸기</h2>
+      <h2 id="amountTitle">위에서 걸 곳을 먼저 눌러요</h2>
       <div class="bet">
-        <input type="number" id="betAmount" min="0" step="10" value="100">
+        <input type="number" id="betAmount" min="0" step="10">
         <div class="quick">
           <button class="ghost small" data-add="10">+10</button>
           <button class="ghost small" data-add="100">+100</button>
-          <button class="ghost small" data-half>절반</button>
-          <button class="ghost small" data-all>올인</button>
+          <button class="ghost small" data-share="third">1/3</button>
+          <button class="ghost small" data-share="half">절반</button>
+          <button class="ghost small" data-share="all">올인</button>
+          <button class="ghost small" data-clear>0</button>
         </div>
       </div>
       <p class="hint" id="hint"></p>
-      <button id="start" class="primary big">배틀 시작!</button>
+      <div class="bet-actions">
+        <button id="watch" class="ghost">구경하기</button>
+        <button id="start" class="primary">배틀 시작!</button>
+      </div>
       <div class="room-bets hidden" id="roomBets"></div>
       <div class="record" id="record"></div>
     </aside>

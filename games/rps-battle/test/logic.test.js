@@ -25,15 +25,28 @@ test("odds have a floor and are zero when there is nothing to bet on", () => {
   assert.equal(RPS.odds({ rock: 5, paper: 0, scissors: 0 }, "rock"), 0);
 });
 
-test("validate catches bad setups", () => {
-  const ok = { counts: { rock: 5, paper: 5, scissors: 5 }, pick: "rock", bet: 50, coins: 100 };
-  assert.equal(RPS.validate(ok), "");
-  assert.notEqual(RPS.validate({ ...ok, counts: { rock: 5, paper: 0, scissors: 0 } }), "");
-  assert.notEqual(RPS.validate({ ...ok, pick: null }), "");
-  assert.notEqual(RPS.validate({ ...ok, counts: { rock: 0, paper: 5, scissors: 5 } }), "");
-  assert.notEqual(RPS.validate({ ...ok, bet: 101 }), "");
-  assert.notEqual(RPS.validate({ ...ok, bet: -1 }), "");
-  assert.equal(RPS.validate({ ...ok, bet: 0 }), "");
+test("validateSlip catches bad slips", () => {
+  const counts = { rock: 5, paper: 5, scissors: 0 };
+  const ok = { counts, slip: { rock: 50, paper: 20, scissors: 0 }, coins: 100 };
+  assert.equal(RPS.validateSlip(ok), "");
+  assert.notEqual(RPS.validateSlip({ ...ok, slip: RPS.emptySlip() }), "");
+  assert.notEqual(RPS.validateSlip({ ...ok, slip: { rock: 0, paper: 0, scissors: 10 } }), "");
+  assert.notEqual(RPS.validateSlip({ ...ok, slip: { rock: 81, paper: 20, scissors: 0 } }), "");
+  assert.notEqual(RPS.validateSlip({ ...ok, slip: { rock: -1, paper: 20, scissors: 0 } }), "");
+  assert.equal(RPS.validateSlip({ ...ok, slip: { rock: 80, paper: 20, scissors: 0 } }), "");
+});
+
+test("cleanSlip keeps only positive whole amounts on real sides", () => {
+  assert.deepEqual(RPS.cleanSlip({ rock: "30", paper: -5, scissors: 2.9, lizard: 9 }), { rock: 30, paper: 0, scissors: 2 });
+  assert.deepEqual(RPS.cleanSlip(null), RPS.emptySlip());
+});
+
+test("quick amounts are shares of the wallet capped by what is still free", () => {
+  assert.equal(RPS.quickAmount("third", 900, 0), 300);
+  assert.equal(RPS.quickAmount("half", 900, 0), 450);
+  assert.equal(RPS.quickAmount("all", 900, 200), 700);
+  assert.equal(RPS.quickAmount("half", 900, 600), 300);
+  assert.equal(RPS.quickAmount("third", 10, 10), 0);
 });
 
 test("survivors reports the last type standing", () => {
@@ -50,11 +63,12 @@ test("random lineups always include every type within bounds", () => {
   }
 });
 
-test("settle pays winners at the lineup's odds and takes losers' bets", () => {
+test("settle pays the winning side of a slip and loses the rest", () => {
   const lineup = { rock: 10, paper: 10, scissors: 10 };
-  assert.deepEqual(RPS.settle({ pick: "rock", bet: 100 }, lineup, "rock"), { won: true, returned: 270, delta: 170 });
-  assert.deepEqual(RPS.settle({ pick: "paper", bet: 100 }, lineup, "rock"), { won: false, returned: 0, delta: -100 });
-  assert.deepEqual(RPS.settle({ pick: "rock", bet: 0 }, lineup, "rock"), { won: true, returned: 0, delta: 0 });
+  assert.deepEqual(RPS.settle({ rock: 100, paper: 0, scissors: 0 }, lineup, "rock"), { total: 100, returned: 270, delta: 170, won: true });
+  assert.deepEqual(RPS.settle({ rock: 0, paper: 100, scissors: 0 }, lineup, "rock"), { total: 100, returned: 0, delta: -100, won: false });
+  // backing two sides: one pays, the other is lost
+  assert.deepEqual(RPS.settle({ rock: 100, paper: 100, scissors: 0 }, lineup, "paper"), { total: 200, returned: 270, delta: 70, won: true });
 });
 
 test("room codes are five readable characters and normalize from typed input", () => {

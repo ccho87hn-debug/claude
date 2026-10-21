@@ -24,15 +24,38 @@
     return Math.floor(bet * odds(counts, type));
   }
 
-  // Why the current setup can't start yet, or "" when it can.
-  function validate({ counts, pick, bet, coins }) {
-    const alive = TYPES.filter((t) => counts[t] > 0).length;
-    if (alive < 2) return "최소 두 종류는 넣어야 해요.";
-    if (!pick) return "이길 것 같은 쪽을 골라 주세요.";
-    if (!counts[pick]) return "0마리인 쪽에는 걸 수 없어요.";
-    if (!Number.isInteger(bet) || bet < 0) return "코인은 0 이상 정수로 걸어 주세요.";
-    if (bet > coins) return "가진 코인보다 많이 걸 수 없어요.";
+  // A bet slip is coins per side, e.g. { rock: 100, paper: 0, scissors: 50 }; several sides can be backed at once.
+  const emptySlip = () => ({ rock: 0, paper: 0, scissors: 0 });
+  const slipTotal = (slip) => TYPES.reduce((s, t) => s + (slip[t] || 0), 0);
+
+  // Takes a slip from the network and keeps only sane whole amounts.
+  function cleanSlip(raw) {
+    const slip = emptySlip();
+    for (const t of TYPES) {
+      const n = Math.floor(Number(raw && raw[t]));
+      if (n > 0) slip[t] = n;
+    }
+    return slip;
+  }
+
+  // Why this slip can't be placed, or "" when it can.
+  function validateSlip({ counts, slip, coins }) {
+    for (const t of TYPES) {
+      const n = slip[t] || 0;
+      if (!Number.isInteger(n) || n < 0) return "코인은 0 이상 정수로 걸어 주세요.";
+      if (n > 0 && !odds(counts, t)) return "0마리인 쪽에는 걸 수 없어요.";
+    }
+    const total = slipTotal(slip);
+    if (total === 0) return "한 곳 이상에 코인을 걸어 주세요. 안 걸 거면 구경하기를 눌러요.";
+    if (total > coins) return "가진 코인보다 많이 걸 수 없어요.";
     return "";
+  }
+
+  // Quick-bet buttons: a share of the wallet, never more than what the other sides leave free.
+  function quickAmount(kind, coins, others) {
+    const free = Math.max(0, coins - others);
+    const want = { third: Math.floor(coins / 3), half: Math.floor(coins / 2), all: free }[kind];
+    return Math.min(free, want || 0);
   }
 
   // A fresh lineup for a round: every type shows up, between MIN and MAX of each.
@@ -44,11 +67,11 @@
     return c;
   }
 
-  // What a player gets back from a finished round. `delta` is the change against before the bet was placed.
-  function settle({ pick, bet }, lineup, winner) {
-    const won = pick === winner;
-    const returned = won ? payout(bet, lineup, pick) : 0;
-    return { won, returned, delta: returned - bet };
+  // What a slip pays when `winner` is the last type standing. `delta` is the change against before betting.
+  function settle(slip, lineup, winner) {
+    const total = slipTotal(slip);
+    const returned = payout(slip[winner] || 0, lineup, winner);
+    return { total, returned, delta: returned - total, won: returned > 0 };
   }
 
   // Room codes skip look-alike characters (0/O, 1/I/L) so they are easy to read out loud.
@@ -83,7 +106,7 @@
     return left.size === 1 ? [...left][0] : null;
   }
 
-  const api = { TYPES, BEATS, NAMES, EMOJI, clash, odds, payout, validate, randomLineup, LINEUP_MIN, LINEUP_MAX, settle, makeRoomCode, normalizeCode, packUnits, unpackUnits, survivors };
+  const api = { TYPES, BEATS, NAMES, EMOJI, clash, odds, payout, emptySlip, slipTotal, cleanSlip, validateSlip, quickAmount, randomLineup, LINEUP_MIN, LINEUP_MAX, settle, makeRoomCode, normalizeCode, packUnits, unpackUnits, survivors };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RPS = api;
 })(this);
