@@ -101,12 +101,31 @@
     return units;
   }
 
+  // Skins change how the hands look (only on your own screen). `style` tells the renderer how to draw them:
+  // "tint" recolours an emoji in the team colour, "emoji" draws it as-is with a team-colour glow, "text" draws letters.
+  const SKINS = [
+    { id: "classic", name: "기본 손", price: 0, style: "tint", glyphs: { rock: "✊", paper: "✋", scissors: "✌️" } },
+    { id: "numbers", name: "숫자", price: 300, style: "text", glyphs: { rock: "0", paper: "5", scissors: "2" } },
+    { id: "objects", name: "진짜 물건", price: 600, style: "emoji", glyphs: { rock: "🪨", paper: "📄", scissors: "✂️" } },
+    { id: "mukjjippa", name: "묵찌빠", price: 1000, style: "text", glyphs: { rock: "묵", paper: "빠", scissors: "찌" } },
+  ];
+  const skinById = (id) => SKINS.find((k) => k.id === id) || SKINS[0];
+
+  // Buying a skin: returns the new { coins, skins } or an error message, without touching the input.
+  function buySkin({ coins, skins }, id) {
+    const skin = SKINS.find((k) => k.id === id);
+    if (!skin) return { error: "없는 스킨이에요." };
+    if (skins && skins[id]) return { error: "이미 가진 스킨이에요." };
+    if (coins < skin.price) return { error: `코인이 ${(skin.price - coins).toLocaleString()}개 모자라요.` };
+    return { coins: coins - skin.price, skins: { ...(skins || {}), [id]: true } };
+  }
+
   function survivors(units) {
     const left = new Set(units.map((u) => u.type));
     return left.size === 1 ? [...left][0] : null;
   }
 
-  const api = { TYPES, BEATS, NAMES, EMOJI, clash, odds, payout, emptySlip, slipTotal, cleanSlip, validateSlip, quickAmount, randomLineup, LINEUP_MIN, LINEUP_MAX, settle, makeRoomCode, normalizeCode, packUnits, unpackUnits, survivors };
+  const api = { TYPES, BEATS, NAMES, EMOJI, clash, odds, payout, emptySlip, slipTotal, cleanSlip, validateSlip, quickAmount, randomLineup, LINEUP_MIN, LINEUP_MAX, settle, makeRoomCode, normalizeCode, packUnits, unpackUnits, SKINS, skinById, buySkin, survivors };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else root.RPS = api;
 })(this);

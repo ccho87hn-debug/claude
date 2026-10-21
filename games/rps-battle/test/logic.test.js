@@ -83,3 +83,18 @@ test("units survive a pack/unpack round trip", () => {
   assert.deepEqual(RPS.packUnits(units), [10, 21, 1, 1, 2, 2]);
   assert.deepEqual(RPS.unpackUnits(RPS.packUnits(units)), [{ x: 10, y: 21, type: "paper" }, { x: 1, y: 2, type: "scissors" }]);
 });
+
+test("skins: every skin covers all three hands and the free one comes first", () => {
+  assert.equal(RPS.SKINS[0].price, 0);
+  for (const k of RPS.SKINS) for (const t of RPS.TYPES) assert.ok(k.glyphs[t]);
+  assert.deepEqual(RPS.skinById("numbers").glyphs, { rock: "0", paper: "5", scissors: "2" });
+  assert.equal(RPS.skinById("nope").id, "classic");
+});
+
+test("buySkin takes the price once and refuses what can't be bought", () => {
+  assert.deepEqual(RPS.buySkin({ coins: 1000, skins: { classic: true } }, "numbers"), { coins: 700, skins: { classic: true, numbers: true } });
+  assert.match(RPS.buySkin({ coins: 1000, skins: { numbers: true } }, "numbers").error, /이미/);
+  assert.match(RPS.buySkin({ coins: 100, skins: {} }, "numbers").error, /200개 모자라요/);
+  assert.ok(RPS.buySkin({ coins: 100, skins: {} }, "lizard").error);
+  assert.deepEqual(RPS.buySkin({ coins: 0 }, "classic"), { coins: 0, skins: { classic: true } });
+});

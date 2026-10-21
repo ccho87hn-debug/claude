@@ -1,4 +1,4 @@
-const { TYPES, NAMES, EMOJI, clash, odds, payout, emptySlip, slipTotal, cleanSlip, validateSlip, quickAmount, randomLineup, settle, normalizeCode, packUnits, unpackUnits, survivors } = window.RPS;
+const { TYPES, NAMES, SKINS, skinById, buySkin, clash, odds, payout, emptySlip, slipTotal, cleanSlip, validateSlip, quickAmount, randomLineup, settle, normalizeCode, packUnits, unpackUnits, survivors } = window.RPS;
 
 // ---------- Arena constants (logical units; the canvas scales them to fit) ----------
 const W = 900;
@@ -21,9 +21,15 @@ const ctx = canvas.getContext("2d");
 function loadSave() {
   try {
     const s = JSON.parse(localStorage.getItem("rpsBattle.save"));
-    if (s && Number.isInteger(s.coins)) return { wins: 0, losses: 0, best: 0, ...s };
+    if (s && Number.isInteger(s.coins)) return withSkins({ wins: 0, losses: 0, best: 0, ...s });
   } catch {}
-  return { coins: START_COINS, wins: 0, losses: 0, best: 0 };
+  return withSkins({ coins: START_COINS, wins: 0, losses: 0, best: 0 });
+}
+// Everyone owns the free skin; a skin that isn't owned can't stay equipped.
+function withSkins(s) {
+  s.skins = { ...(s.skins || {}), classic: true };
+  if (!s.skins[s.skin]) s.skin = "classic";
+  return s;
 }
 let save = loadSave();
 let account = false; // signed in with Firebase: coins live on the account instead of this computer
@@ -65,31 +71,58 @@ let locked = false; // a guest has sent their bet (or chose to watch)
 let staked = 0; // coins taken from my wallet this round, refunded if the room drops before the end
 let lastSnap = 0;
 
-// ---------- Sprites: each hand is pre-drawn once at high resolution ----------
-const sprites = {};
-function buildSprites() {
-  const px = GLYPH * 3;
-  for (const t of TYPES) {
-    const c = document.createElement("canvas");
-    c.width = c.height = px;
-    const g = c.getContext("2d");
-    g.font = `${Math.round(px * 0.8)}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;
-    g.textAlign = "center";
-    g.textBaseline = "middle";
-    const glyph = () => g.fillText(EMOJI[t], px / 2, px / 2 + px * 0.04);
-    // Recolour the hand in its team colour but keep the emoji's shading and outline:
-    // draw it in grey, multiply by the colour, then cut back to the hand's own shape.
-    g.filter = "grayscale(1) brightness(1.35) contrast(1.1)";
-    glyph();
-    g.filter = "none";
-    g.globalCompositeOperation = "multiply";
+// ---------- Sprites: each hand is pre-drawn once at high resolution, in the equipped skin ----------
+let sprites = {};
+const glyph = (t) => skinById(save.skin).glyphs[t];
+
+function drawSkin(skin, t, px) {
+  const c = document.createElement("canvas");
+  c.width = c.height = px;
+  const g = c.getContext("2d");
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  const text = skin.glyphs[t];
+  if (skin.style === "text") {
+    // Big team-coloured letters with a white rim so they read like the hands do.
+    g.font = `900 ${Math.round(px * (text.length > 1 ? 0.5 : 0.72))}px Pretendard, "Segoe UI", sans-serif`;
+    g.lineJoin = "round";
+    g.lineWidth = px * 0.09;
+    g.strokeStyle = "#fff";
+    g.strokeText(text, px / 2, px / 2 + px * 0.04);
     g.fillStyle = COLORS[t];
-    g.fillRect(0, 0, px, px);
-    g.globalCompositeOperation = "destination-in";
-    glyph();
-    g.globalCompositeOperation = "source-over";
-    sprites[t] = c;
+    g.fillText(text, px / 2, px / 2 + px * 0.04);
+    return c;
   }
+  g.font = `${Math.round(px * 0.8)}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;
+  const draw = () => g.fillText(text, px / 2, px / 2 + px * 0.04);
+  if (skin.style === "emoji") {
+    // Real-object emoji keep their own colours; a team-colour glow says which side they're on.
+    g.shadowColor = COLORS[t];
+    g.shadowBlur = px * 0.12;
+    g.font = `${Math.round(px * 0.7)}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;
+    draw();
+    draw();
+    return c;
+  }
+  // Recolour the hand in its team colour but keep the emoji's shading and outline:
+  // draw it in grey, multiply by the colour, then cut back to the hand's own shape.
+  g.filter = "grayscale(1) brightness(1.35) contrast(1.1)";
+  draw();
+  g.filter = "none";
+  g.globalCompositeOperation = "multiply";
+  g.fillStyle = COLORS[t];
+  g.fillRect(0, 0, px, px);
+  g.globalCompositeOperation = "destination-in";
+  draw();
+  g.globalCompositeOperation = "source-over";
+  return c;
+}
+
+function buildSprites() {
+  const skin = skinById(save.skin);
+  sprites = {};
+  for (const t of TYPES) sprites[t] = drawSkin(skin, t, GLYPH * 3);
+  document.querySelectorAll("[data-glyph]").forEach((e) => (e.textContent = skin.glyphs[e.dataset.glyph]));
 }
 
 // ---------- Placement ----------
@@ -116,7 +149,7 @@ function spawn(c) {
 
 // ---------- Panels ----------
 function showPanel(id) {
-  for (const p of ["authPanel", "lobbyPanel", "roomPanel", "countPanel", "betPanel", "livePanel"]) $(p).classList.toggle("hidden", p !== id);
+  for (const p of ["lobbyPanel", "shopPanel", "roomPanel", "countPanel", "betPanel", "livePanel"]) $(p).classList.toggle("hidden", p !== id);
 }
 
 const nameOf = (id) => (members.find((m) => m.id === id) || {}).name || "?";
@@ -139,7 +172,7 @@ function betRows() {
   return members.map((m) => {
     const b = roomBets[m.id];
     const sides = b && !b.watch ? TYPES.filter((t) => b.slip[t] > 0) : [];
-    const what = !b ? "고르는 중..." : b.watch ? "👀 구경" : sides.map((t) => `${EMOJI[t]} ${b.slip[t].toLocaleString()}`).join(" · ");
+    const what = !b ? "고르는 중..." : b.watch ? "👀 구경" : sides.map((t) => `${glyph(t)} ${b.slip[t].toLocaleString()}`).join(" · ");
     return el("div", { className: "room-bet " + (sides.length === 1 ? sides[0] : b ? "ready" : "") }, el("b", { textContent: m.name }), el("span", { textContent: what }));
   });
 }
@@ -158,7 +191,7 @@ function refreshBet() {
     btn.classList.toggle("selected", t === focus);
     btn.classList.toggle("staked", slip[t] > 0);
   }
-  $("amountTitle").textContent = focus ? `${EMOJI[focus]} ${NAMES[focus]}에 걸 코인` : "위에서 걸 곳을 먼저 눌러요";
+  $("amountTitle").textContent = focus ? `${glyph(focus)} ${NAMES[focus]}에 걸 코인` : "위에서 걸 곳을 먼저 눌러요";
   const amount = $("betAmount");
   if (document.activeElement !== amount) amount.value = focus ? slip[focus] : "";
   document.querySelectorAll(".bet input, .bet button").forEach((e) => (e.disabled = locked || !focus));
@@ -171,7 +204,7 @@ function refreshBet() {
   else if (total === 0) hint.textContent = "여러 곳에 나눠 걸 수도 있어요.";
   else if (err) hint.textContent = err;
   else {
-    const wins = TYPES.filter((t) => slip[t] > 0).map((t) => `${EMOJI[t]} 이기면 🪙 ${payout(slip[t], lineup, t).toLocaleString()}`);
+    const wins = TYPES.filter((t) => slip[t] > 0).map((t) => `${glyph(t)} 이기면 🪙 ${payout(slip[t], lineup, t).toLocaleString()}`);
     hint.textContent = `합계 🪙 ${total.toLocaleString()} · ` + wins.join(" / ");
   }
 
@@ -302,7 +335,7 @@ function go() {
   $("liveBet").innerHTML = !betting
     ? "이번 판은 구경 중이에요."
     : TYPES.filter((t) => mine.slip[t] > 0)
-      .map((t) => `${EMOJI[t]} <b>${NAMES[t]}</b> 🪙 ${mine.slip[t].toLocaleString()} → 이기면 🪙 ${payout(mine.slip[t], lineup, t).toLocaleString()}`)
+      .map((t) => `${glyph(t)} <b>${NAMES[t]}</b> 🪙 ${mine.slip[t].toLocaleString()} → 이기면 🪙 ${payout(mine.slip[t], lineup, t).toLocaleString()}`)
       .join("<br>");
   $("liveBets").replaceChildren(...(mode === "solo" ? [] : betRows()));
   $("speedRow").classList.toggle("hidden", mode === "guest");
@@ -329,7 +362,7 @@ function finishRound(winner) {
   }
   refreshWallet();
   updateHud();
-  $("resultEmoji").textContent = EMOJI[winner];
+  $("resultEmoji").textContent = glyph(winner);
   $("resultTitle").textContent = `${NAMES[winner]} 최종 승리!`;
   const rc = $("resultCoins");
   rc.className = "result-coins " + (r && r.delta > 0 ? "win" : "lose");
@@ -361,13 +394,27 @@ function authMessage(text, warn = false) {
 
 function enterAccount(profile) {
   account = true;
-  save = {
+  save = withSkins({
     name: profile.name,
     coins: Number.isInteger(profile.coins) ? profile.coins : 0,
     wins: profile.wins || 0, losses: profile.losses || 0, best: profile.best || 0,
-  };
-  $("authPass").value = "";
+    skins: profile.skins, skin: profile.skin,
+  });
+  $("authPass").value = $("authPass2").value = "";
+  $("authScreen").classList.add("hidden");
+  buildSprites();
   showLobby();
+}
+
+let signupMode = false;
+function setAuthMode(signup) {
+  signupMode = signup;
+  $("tabLogin").classList.toggle("active", !signup);
+  $("tabSignup").classList.toggle("active", signup);
+  $("pass2Row").classList.toggle("hidden", !signup);
+  $("authSubmit").textContent = signup ? "가입하고 시작하기" : "로그인";
+  $("authPass").autocomplete = signup ? "new-password" : "current-password";
+  authMessage("");
 }
 
 function showLobby() {
@@ -380,20 +427,21 @@ function showLobby() {
   refreshWallet();
 }
 
-async function authAction(kind) {
+async function authAction() {
   const name = $("authName").value.trim();
   const password = $("authPass").value;
   const bad = window.Account ? Account.checkInput(name, password) : "로그인 기능을 불러오지 못했어요.";
   if (bad) { authMessage(bad, true); return; }
-  authMessage(kind === "signUp" ? "가입하는 중이에요..." : "로그인하는 중이에요...");
-  $("logIn").disabled = $("signUp").disabled = true;
+  if (signupMode && password !== $("authPass2").value) { authMessage("비밀번호 확인이 달라요.", true); return; }
+  authMessage(signupMode ? "가입하는 중이에요..." : "로그인하는 중이에요...");
+  $("authSubmit").disabled = true;
   try {
-    enterAccount(await (kind === "signUp" ? Account.signUp(name, password) : Account.logIn(name, password)));
+    enterAccount(await (signupMode ? Account.signUp(name, password) : Account.logIn(name, password)));
     authMessage("");
   } catch (e) {
     authMessage(e.message, true);
   } finally {
-    $("logIn").disabled = $("signUp").disabled = false;
+    $("authSubmit").disabled = false;
   }
 }
 
@@ -402,9 +450,59 @@ async function logOut() {
   await Account.logOut();
   account = false;
   save = loadSave();
+  buildSprites();
+  setAuthMode(false);
   authMessage("로그아웃했어요.");
-  showPanel("authPanel");
+  $("authScreen").classList.remove("hidden");
   refreshWallet();
+}
+
+// ---------- Skin shop ----------
+function openShop() {
+  $("shopMsg").textContent = "";
+  renderShop();
+  showPanel("shopPanel");
+}
+
+function renderShop() {
+  $("skinList").replaceChildren(...SKINS.map((skin) => {
+    const preview = el("canvas", { width: 360, height: 120 });
+    const g = preview.getContext("2d");
+    TYPES.forEach((t, i) => g.drawImage(drawSkin(skin, t, 120), i * 120, 0, 120, 120));
+    const owned = save.skins[skin.id];
+    const equipped = save.skin === skin.id;
+    const action = el("button", {
+      className: equipped ? "ghost" : owned ? "ghost" : "primary",
+      textContent: equipped ? "쓰는 중" : owned ? "쓰기" : `🪙 ${skin.price.toLocaleString()}`,
+      disabled: equipped,
+      onclick: () => (owned ? equip(skin.id) : buy(skin.id)),
+    });
+    return el("div", { className: "skin" + (equipped ? " equipped" : "") },
+      preview,
+      el("div", {}, el("b", { textContent: skin.name }),
+        el("small", { textContent: TYPES.map((t) => `${NAMES[t]} ${skin.glyphs[t]}`).join(" · ") })),
+      action);
+  }));
+}
+
+function buy(id) {
+  const r = buySkin(save, id);
+  const msg = $("shopMsg");
+  msg.classList.toggle("warn", !!r.error);
+  if (r.error) { msg.textContent = r.error; return; }
+  save.coins = r.coins;
+  save.skins = r.skins;
+  msg.textContent = `${skinById(id).name} 스킨을 샀어요!`;
+  equip(id);
+}
+
+function equip(id) {
+  if (!save.skins[id]) return;
+  save.skin = id;
+  persist();
+  buildSprites();
+  refreshWallet();
+  renderShop();
 }
 
 async function restoreLogin() {
@@ -414,6 +512,7 @@ async function restoreLogin() {
     if (profile) { enterAccount(profile); return; }
   } catch {}
   authMessage("");
+  $("authName").focus();
 }
 
 // ---------- Lobby and rooms ----------
@@ -915,9 +1014,18 @@ document.querySelectorAll("[data-share]").forEach((b) =>
   b.addEventListener("click", () => setStake(quickAmount(b.dataset.share, save.coins, others()))));
 document.querySelector("[data-clear]").addEventListener("click", () => setStake(0));
 $("watch").addEventListener("click", onWatchClick);
-$("authForm").addEventListener("submit", (e) => { e.preventDefault(); authAction("logIn"); });
-$("signUp").addEventListener("click", () => authAction("signUp"));
-$("noLogin").addEventListener("click", () => { account = false; save = loadSave(); showLobby(); });
+$("authForm").addEventListener("submit", (e) => { e.preventDefault(); authAction(); });
+$("tabLogin").addEventListener("click", () => setAuthMode(false));
+$("tabSignup").addEventListener("click", () => setAuthMode(true));
+$("noLogin").addEventListener("click", () => {
+  account = false;
+  save = loadSave();
+  $("authScreen").classList.add("hidden");
+  buildSprites();
+  showLobby();
+});
+$("openShop").addEventListener("click", openShop);
+$("closeShop").addEventListener("click", showLobby);
 $("logOut").addEventListener("click", logOut);
 $("solo").addEventListener("click", playSolo);
 $("hostRoom").addEventListener("click", hostRoom);
@@ -944,6 +1052,7 @@ window.addEventListener("beforeunload", () => { if (room) room.close(); });
 
 new ResizeObserver(resize).observe(canvas);
 buildSprites();
+document.fonts.load('900 40px Pretendard').then(buildSprites).catch(() => {});
 resize();
 refreshWallet();
 updateHud();
