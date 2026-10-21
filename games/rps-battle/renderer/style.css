@@ -10,9 +10,9 @@
   --panel-2: #252938;
   --text: #eef0f7;
   --muted: #9aa0b4;
-  --rock: #ef6b5b;
-  --paper: #4fa3f7;
-  --scissors: #f5c242;
+  --rock: #ff5a4e;
+  --paper: #3d9bff;
+  --scissors: #3fd46f;
   --accent: #7c5cff;
   --good: #3ccf8e;
   --bad: #ff5d73;
@@ -149,9 +149,9 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 }
 .pick span { font-size: 13px; }
 .pick em { font-style: normal; font-size: 13px; color: var(--muted); font-weight: 700; }
-.pick.rock.selected { border-color: var(--rock); background: #ef6b5b22; }
-.pick.paper.selected { border-color: var(--paper); background: #4fa3f722; }
-.pick.scissors.selected { border-color: var(--scissors); background: #f5c24222; }
+.pick.rock.selected { border-color: var(--rock); background: #ff5a4e22; }
+.pick.paper.selected { border-color: var(--paper); background: #3d9bff22; }
+.pick.scissors.selected { border-color: var(--scissors); background: #3fd46f22; }
 
 .bet input {
   width: 100%; padding: 10px 12px; border-radius: 10px;

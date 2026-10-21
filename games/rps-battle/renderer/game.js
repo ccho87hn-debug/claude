@@ -8,7 +8,7 @@ const GLYPH = 40; // drawn size of a hand
 const BASE_SPEED = 105;
 const STEER = 160;
 const SUDDEN_DEATH_AT = 60; // seconds; after this, everyone speeds up so a round always ends
-const COLORS = { rock: "#ef6b5b", paper: "#4fa3f7", scissors: "#f5c242" };
+const COLORS = { rock: "#ff5a4e", paper: "#3d9bff", scissors: "#3fd46f" };
 const START_COINS = 1000;
 const BAILOUT = 500;
 
@@ -54,7 +54,18 @@ function buildSprites() {
     g.font = `${Math.round(px * 0.8)}px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`;
     g.textAlign = "center";
     g.textBaseline = "middle";
-    g.fillText(EMOJI[t], px / 2, px / 2 + px * 0.04);
+    const glyph = () => g.fillText(EMOJI[t], px / 2, px / 2 + px * 0.04);
+    // Recolour the hand in its team colour but keep the emoji's shading and outline:
+    // draw it in grey, multiply by the colour, then cut back to the hand's own shape.
+    g.filter = "grayscale(1) brightness(1.35) contrast(1.1)";
+    glyph();
+    g.filter = "none";
+    g.globalCompositeOperation = "multiply";
+    g.fillStyle = COLORS[t];
+    g.fillRect(0, 0, px, px);
+    g.globalCompositeOperation = "destination-in";
+    glyph();
+    g.globalCompositeOperation = "source-over";
     sprites[t] = c;
   }
 }
@@ -291,8 +302,8 @@ function buildFloor(scale) {
   const g = c.getContext("2d");
   g.scale(scale, scale);
   const bg = g.createRadialGradient(W / 2, H / 2, 50, W / 2, H / 2, W * 0.7);
-  bg.addColorStop(0, "#2b5d45");
-  bg.addColorStop(1, "#173426");
+  bg.addColorStop(0, "#343c50");
+  bg.addColorStop(1, "#1a1e2b");
   g.fillStyle = bg;
   g.fillRect(0, 0, W, H);
   // checkered turf
