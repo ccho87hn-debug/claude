@@ -58,10 +58,6 @@
           <div class="result-title" id="resultTitle">바위 승리!</div>
           <div class="result-coins" id="resultCoins">+0</div>
           <div class="result-lines" id="resultLines"></div>
-          <div class="modes compact" id="resultModes">
-            <button class="mode-btn active" data-mode="odds"><b>✖️ 몇 배 모드</b><small>적게 나온 쪽일수록 배당이 커요</small></button>
-            <button class="mode-btn" data-mode="pot"><b>💰 뺏기 모드</b><small>맞힌 사람이 판돈을 다 가져가요</small></button>
-          </div>
           <p class="result-wait hidden" id="resultWait"></p>
           <div class="result-actions">
             <button id="leave2" class="ghost">나가기</button>
@@ -167,6 +163,7 @@
       </div>
       <div class="room-bets hidden" id="roomBets"></div>
       <div class="record" id="record"></div>
+      <button class="ghost wide quit" data-quit>나가기</button>
     </aside>
 
     <aside class="panel hidden" id="livePanel">
@@ -181,6 +178,7 @@
         <button class="ghost small speed-btn" data-speed="4">4x</button>
       </div>
       <label class="toggle"><input type="checkbox" id="sound" checked> 소리</label>
+      <button class="ghost wide quit" data-quit>나가기</button>
     </aside>
   </main>
 

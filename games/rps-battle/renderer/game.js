@@ -67,6 +67,7 @@ let room = null; // Net.Room while online
 let myId = "host"; // the host (and a solo player) is always "host"; guests use their peer id
 let members = []; // [{ id, name }]
 let roomBets = {}; // id -> { slip } or { watch: true }, once that player is ready this round
+let started = false; // online: the mode is picked once before the first round and then kept until you leave
 let betMode = "odds"; // online: "odds" pays house odds like solo, "pot" lets whoever guessed right take the whole pot
 let nextTimer = null; // online: the host starts the next round on its own after a short break
 let locked = false; // a guest has sent their bet (or chose to watch)
@@ -177,9 +178,8 @@ const MODE_NAMES = { odds: "✖️ 몇 배 모드", pot: "💰 뺏기 모드" };
 function refreshModes() {
   document.querySelectorAll(".mode-btn").forEach((b) => {
     b.classList.toggle("active", b.dataset.mode === betMode);
-    b.disabled = mode !== "host";
+    b.disabled = mode !== "host" || started;
   });
-  $("resultModes").classList.toggle("hidden", mode !== "host");
   for (const id of ["modeTag", "liveModeTag"]) {
     $(id).textContent = MODE_NAMES[betMode];
     $(id).classList.toggle("hidden", mode === "solo");
@@ -187,7 +187,7 @@ function refreshModes() {
 }
 
 function setBetMode(m) {
-  if (mode !== "host" || !MODE_NAMES[m] || phase === "betting" || phase === "running") return;
+  if (mode !== "host" || started || !MODE_NAMES[m]) return;
   betMode = m;
   broadcastMembers();
   refreshModes();
@@ -268,15 +268,14 @@ function refreshWallet() {
 
 // ---------- Round flow ----------
 // Solo and host decide everything; a guest follows the host's messages.
-// Online: the result card counts down to the next round so everyone stays in the room and keeps playing.
+// The result card counts down to the next round so everyone stays in the room and keeps playing.
 let nextTick = null;
 function startNextCountdown() {
   clearInterval(nextTick);
   const w = $("resultWait");
-  w.classList.toggle("hidden", mode === "solo");
-  if (mode === "solo") return;
+  w.classList.remove("hidden");
   let left = NEXT_ROUND_IN;
-  const show = () => (w.textContent = left > 0 ? `${left}초 뒤 다음 판이 시작돼요` + (mode === "host" ? " (바로 하려면 다음 판)" : "") : "곧 시작해요...");
+  const show = () => (w.textContent = left > 0 ? `${left}초 뒤 다음 판이 시작돼요. 그만하려면 나가기를 눌러요.` : "곧 시작해요...");
   show();
   nextTick = setInterval(() => { left--; show(); if (left <= 0) clearInterval(nextTick); }, 1000);
 }
@@ -285,6 +284,7 @@ function newRound() {
   if (mode === "guest") return;
   clearTimeout(nextTimer);
   clearInterval(nextTick);
+  started = true;
   if (room) room.send({ t: "countdown", mode: betMode });
   beginCountdown();
 }
@@ -407,8 +407,8 @@ function outcomeText(r) {
 
 function finishRound(winner) {
   phase = "done";
-  if (mode === "host") {
-    room.send({ t: "end", winner });
+  if (mode !== "guest") {
+    if (room) room.send({ t: "end", winner });
     clearTimeout(nextTimer);
     nextTimer = setTimeout(newRound, NEXT_ROUND_IN * 1000);
   }
@@ -655,8 +655,9 @@ async function joinRoom() {
   refreshRoom();
 }
 
-function leaveRoom(why = "") {
-  if (staked && phase !== "done") {
+// `forfeit`: a guest who walks out mid-battle leaves their bet in the round; otherwise an unfinished round is refunded.
+function leaveRoom(why = "", forfeit = false) {
+  if (staked && phase !== "done" && !forfeit) {
     save.coins += staked; // the round never finished, so the bet comes back
     persist();
   }
@@ -665,6 +666,7 @@ function leaveRoom(why = "") {
   clearInterval(nextTick);
   if (room) room.close();
   room = null;
+  started = false;
   mode = "solo";
   members = [];
   roomBets = {};
@@ -1121,6 +1123,7 @@ $("start").addEventListener("click", onStartClick);
 $("again").addEventListener("click", newRound);
 $("leave").addEventListener("click", () => leaveRoom());
 $("leave2").addEventListener("click", () => leaveRoom());
+document.querySelectorAll("[data-quit]").forEach((b) => b.addEventListener("click", () => leaveRoom("", mode === "guest" && phase === "running")));
 document.querySelectorAll(".mode-btn").forEach((b) => b.addEventListener("click", () => setBetMode(b.dataset.mode)));
 $("bailout").addEventListener("click", () => {
   save.coins += BAILOUT;
