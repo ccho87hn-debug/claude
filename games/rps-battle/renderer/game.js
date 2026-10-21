@@ -67,6 +67,8 @@ let room = null; // Net.Room while online
 let myId = "host"; // the host (and a solo player) is always "host"; guests use their peer id
 let members = []; // [{ id, name }]
 let roomBets = {}; // id -> { slip } or { watch: true }, once that player is ready this round
+let betMode = "odds"; // online: "odds" pays house odds like solo, "pot" lets whoever guessed right take the whole pot
+let nextTimer = null; // online: the host starts the next round on its own after a short break
 let locked = false; // a guest has sent their bet (or chose to watch)
 let staked = 0; // coins taken from my wallet this round, refunded if the room drops before the end
 let lastSnap = 0;
@@ -155,6 +157,7 @@ function showPanel(id) {
 const nameOf = (id) => (members.find((m) => m.id === id) || {}).name || "?";
 
 function refreshRoom() {
+  refreshModes();
   $("roomCode").textContent = room ? room.code : "";
   $("roomTip").textContent = mode === "host"
     ? "친구에게 이 코드를 알려 주세요. 친구는 자기 컴퓨터에서 '참가'에 코드를 넣으면 들어와요."
@@ -167,9 +170,32 @@ function refreshRoom() {
   $("roomWait").classList.toggle("hidden", mode !== "guest");
 }
 
-// Everyone's bets in this room (online only). Until the battle starts, other players only show as ready.
+const NEXT_ROUND_IN = 8; // seconds between online rounds
+const potMode = () => mode !== "solo" && betMode === "pot";
+const MODE_NAMES = { odds: "✖️ 몇 배 모드", pot: "💰 뺏기 모드" };
+
+function refreshModes() {
+  document.querySelectorAll(".mode-btn").forEach((b) => {
+    b.classList.toggle("active", b.dataset.mode === betMode);
+    b.disabled = mode !== "host";
+  });
+  $("resultModes").classList.toggle("hidden", mode !== "host");
+  for (const id of ["modeTag", "liveModeTag"]) {
+    $(id).textContent = MODE_NAMES[betMode];
+    $(id).classList.toggle("hidden", mode === "solo");
+  }
+}
+
+function setBetMode(m) {
+  if (mode !== "host" || !MODE_NAMES[m] || phase === "betting" || phase === "running") return;
+  betMode = m;
+  broadcastMembers();
+  refreshModes();
+}
+
+// Everyone's bets in this room (online only). In 뺏기 mode other players only show as ready until the battle starts.
 function betRows() {
-  const secret = phase === "betting";
+  const secret = phase === "betting" && potMode();
   return members.map((m) => {
     const b = roomBets[m.id];
     if (b && secret && m.id !== myId) return el("div", { className: "room-bet ready" }, el("b", { textContent: m.name }), el("span", { textContent: "✅ 준비 완료" }));
@@ -187,7 +213,7 @@ function refreshBet() {
   for (const btn of document.querySelectorAll(".pick")) {
     const t = btn.dataset.type;
     const o = odds(lineup, t);
-    btn.querySelector(".odds").textContent = !o ? "-" : mode === "solo" ? `x${o}` : "";
+    btn.querySelector(".odds").textContent = !o ? "-" : potMode() ? "" : `x${o}`;
     btn.querySelector(".stake").textContent = slip[t] ? `🪙 ${slip[t].toLocaleString()}` : "";
     btn.disabled = !o || locked;
     btn.classList.toggle("selected", t === focus);
@@ -205,7 +231,7 @@ function refreshBet() {
   if (locked) hint.textContent = roomBets[myId] && roomBets[myId].watch ? "구경하기로 했어요. 방장이 곧 시작해요." : "다 준비되면 방장이 배틀을 시작해요.";
   else if (total === 0) hint.textContent = "여러 곳에 나눠 걸 수도 있어요.";
   else if (err) hint.textContent = err;
-  else if (mode !== "solo") hint.textContent = `합계 🪙 ${total.toLocaleString()} · 맞힌 사람끼리 판돈을 다 나눠 가져요`;
+  else if (potMode()) hint.textContent = `합계 🪙 ${total.toLocaleString()} · 맞힌 사람끼리 판돈을 다 나눠 가져요`;
   else {
     const wins = TYPES.filter((t) => slip[t] > 0).map((t) => `${glyph(t)} 이기면 🪙 ${payout(slip[t], lineup, t).toLocaleString()}`);
     hint.textContent = `합계 🪙 ${total.toLocaleString()} · ` + wins.join(" / ");
@@ -242,13 +268,29 @@ function refreshWallet() {
 
 // ---------- Round flow ----------
 // Solo and host decide everything; a guest follows the host's messages.
+// Online: the result card counts down to the next round so everyone stays in the room and keeps playing.
+let nextTick = null;
+function startNextCountdown() {
+  clearInterval(nextTick);
+  const w = $("resultWait");
+  w.classList.toggle("hidden", mode === "solo");
+  if (mode === "solo") return;
+  let left = NEXT_ROUND_IN;
+  const show = () => (w.textContent = left > 0 ? `${left}초 뒤 다음 판이 시작돼요` + (mode === "host" ? " (바로 하려면 다음 판)" : "") : "곧 시작해요...");
+  show();
+  nextTick = setInterval(() => { left--; show(); if (left <= 0) clearInterval(nextTick); }, 1000);
+}
+
 function newRound() {
   if (mode === "guest") return;
-  if (room) room.send({ t: "countdown" });
+  clearTimeout(nextTimer);
+  clearInterval(nextTick);
+  if (room) room.send({ t: "countdown", mode: betMode });
   beginCountdown();
 }
 
 function beginCountdown() {
+  clearInterval(nextTick);
   phase = "countdown";
   countdown = 3;
   units = [];
@@ -262,6 +304,7 @@ function beginCountdown() {
   clock = 0;
   goAt = -1;
   $("result").classList.add("hidden");
+  refreshModes();
   showPanel("countPanel");
   refreshWallet();
   updateHud();
@@ -320,7 +363,7 @@ function onWatchClick() {
 const everyoneReady = () => members.every((m) => m.id === myId || roomBets[m.id]);
 
 function launch() {
-  if (room) room.send({ t: "go", bets: roomBets });
+  if (room) room.send({ t: "go", bets: roomBets, mode: betMode });
   go();
 }
 
@@ -337,8 +380,8 @@ function go() {
   showPanel("livePanel");
   const slips = potSlips();
   const pot = Object.values(slips).reduce((n, sl) => n + slipTotal(sl), 0);
-  const win = (t) => (mode === "solo" ? payout(mine.slip[t], lineup, t) : settlePot(slips, t)[myId].returned);
-  $("liveBet").innerHTML = (mode === "solo" ? "" : `판돈 🪙 ${pot.toLocaleString()}<br>`) + (!betting
+  const win = (t) => (potMode() ? settlePot(slips, t)[myId].returned : payout(mine.slip[t], lineup, t));
+  $("liveBet").innerHTML = (!potMode() ? "" : `판돈 🪙 ${pot.toLocaleString()}<br>`) + (!betting
     ? "이번 판은 구경 중이에요."
     : TYPES.filter((t) => mine.slip[t] > 0)
       .map((t) => `${glyph(t)} <b>${NAMES[t]}</b> 🪙 ${mine.slip[t].toLocaleString()} → 이기면 🪙 ${win(t).toLocaleString()}`)
@@ -364,10 +407,14 @@ function outcomeText(r) {
 
 function finishRound(winner) {
   phase = "done";
-  if (mode === "host") room.send({ t: "end", winner });
+  if (mode === "host") {
+    room.send({ t: "end", winner });
+    clearTimeout(nextTimer);
+    nextTimer = setTimeout(newRound, NEXT_ROUND_IN * 1000);
+  }
   for (const u of units) u.type = winner;
   const mine = roomBets[myId];
-  const pot = mode === "solo" ? null : settlePot(potSlips(), winner);
+  const pot = potMode() ? settlePot(potSlips(), winner) : null;
   const outcome = (id) => {
     const b = roomBets[id];
     if (!b || b.watch) return null;
@@ -399,7 +446,8 @@ function finishRound(winner) {
       el("b", { textContent: m.name }), el("span", { textContent: outcomeText(o) }));
   }));
   $("again").classList.toggle("hidden", mode === "guest");
-  $("resultWait").classList.toggle("hidden", mode !== "guest");
+  refreshModes();
+  startNextCountdown();
   $("result").classList.remove("hidden");
   const good = r && r.delta > 0;
   beep(good ? 880 : 220, 0.25, good ? "triangle" : "sawtooth");
@@ -613,6 +661,8 @@ function leaveRoom(why = "") {
     persist();
   }
   staked = 0;
+  clearTimeout(nextTimer);
+  clearInterval(nextTick);
   if (room) room.close();
   room = null;
   mode = "solo";
@@ -631,16 +681,16 @@ function leaveRoom(why = "") {
 }
 
 function broadcastMembers() {
-  room.send({ t: "room", members });
+  room.send({ t: "room", members, mode: betMode });
   refreshRoom();
 }
 
-// While betting, each guest only learns who is ready, never where or how much the others bet.
+// In 뺏기 mode, while betting, each guest only learns who is ready, never where or how much the others bet.
 function sendBets() {
   for (const m of members) {
     if (m.id === myId) continue;
     const view = {};
-    for (const [id, b] of Object.entries(roomBets)) view[id] = id === m.id ? b : { ready: true };
+    for (const [id, b] of Object.entries(roomBets)) view[id] = id === m.id || !potMode() ? b : { ready: true };
     room.sendTo(m.id, { t: "bets", bets: view });
   }
 }
@@ -677,6 +727,8 @@ function guestReceive(msg) {
   switch (msg.t) {
     case "room":
       members = msg.members;
+      if (msg.mode) betMode = msg.mode;
+      refreshModes();
       refreshRoom();
       if (phase === "betting") refreshBet();
       break;
@@ -684,6 +736,7 @@ function guestReceive(msg) {
       leaveRoom("방이 꽉 찼어요.");
       break;
     case "countdown":
+      if (msg.mode) betMode = msg.mode;
       beginCountdown();
       break;
     case "reveal":
@@ -700,6 +753,7 @@ function guestReceive(msg) {
     case "go":
       if (!lineup) return;
       roomBets = msg.bets || {};
+      if (msg.mode) betMode = msg.mode;
       go();
       break;
     case "snap":
@@ -1067,6 +1121,7 @@ $("start").addEventListener("click", onStartClick);
 $("again").addEventListener("click", newRound);
 $("leave").addEventListener("click", () => leaveRoom());
 $("leave2").addEventListener("click", () => leaveRoom());
+document.querySelectorAll(".mode-btn").forEach((b) => b.addEventListener("click", () => setBetMode(b.dataset.mode)));
 $("bailout").addEventListener("click", () => {
   save.coins += BAILOUT;
   persist();

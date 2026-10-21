@@ -24,7 +24,7 @@
   // Closing a laptop lid or losing Wi-Fi doesn't always close the connection, so both sides ping
   // and treat a peer that has been silent for a while as gone.
   const PING_EVERY = 2000;
-  const DEAD_AFTER = 8000;
+  const DEAD_AFTER = 15000;
 
   const message = (err) => ERRORS[err && err.type] || "연결에 문제가 생겼어요.";
 

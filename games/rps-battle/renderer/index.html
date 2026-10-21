@@ -58,7 +58,11 @@
           <div class="result-title" id="resultTitle">바위 승리!</div>
           <div class="result-coins" id="resultCoins">+0</div>
           <div class="result-lines" id="resultLines"></div>
-          <p class="result-wait hidden" id="resultWait">방장이 다음 판을 시작하길 기다리고 있어요.</p>
+          <div class="modes compact" id="resultModes">
+            <button class="mode-btn active" data-mode="odds"><b>✖️ 몇 배 모드</b><small>적게 나온 쪽일수록 배당이 커요</small></button>
+            <button class="mode-btn" data-mode="pot"><b>💰 뺏기 모드</b><small>맞힌 사람이 판돈을 다 가져가요</small></button>
+          </div>
+          <p class="result-wait hidden" id="resultWait"></p>
           <div class="result-actions">
             <button id="leave2" class="ghost">나가기</button>
             <button id="again" class="primary">다음 판</button>
@@ -113,6 +117,11 @@
       <p class="lead" id="roomTip"></p>
       <h2>참가자</h2>
       <div class="members" id="members"></div>
+      <h2>베팅 방식</h2>
+      <div class="modes">
+            <button class="mode-btn active" data-mode="odds"><b>✖️ 몇 배 모드</b><small>적게 나온 쪽일수록 배당이 커요</small></button>
+            <button class="mode-btn" data-mode="pot"><b>💰 뺏기 모드</b><small>맞힌 사람이 판돈을 다 가져가요</small></button>
+          </div>
       <button id="newRound" class="primary big">새 판 시작</button>
       <p class="hint" id="roomWait">방장이 판을 시작하길 기다리고 있어요.</p>
       <button id="leave" class="ghost wide">나가기</button>
@@ -124,6 +133,7 @@
     </aside>
 
     <aside class="panel hidden" id="betPanel">
+      <p class="mode-tag hidden" id="modeTag"></p>
       <h2>이번 판 구성</h2>
       <div class="lineup">
         <div class="lineup-row rock"><span><i data-glyph="rock">✊</i> 바위</span><b id="lRock">0</b></div>
@@ -160,6 +170,7 @@
     </aside>
 
     <aside class="panel hidden" id="livePanel">
+      <p class="mode-tag hidden" id="liveModeTag"></p>
       <h2>배틀 진행 중</h2>
       <p class="live-bet" id="liveBet"></p>
       <div class="room-bets" id="liveBets"></div>

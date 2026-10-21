@@ -305,3 +305,13 @@ i[data-glyph] { font-style: normal; font-weight: 800; }
   display: inline-block; min-width: 1.5em; text-align: center;
   background: #ffffff14; border-radius: 6px; padding: 0 3px; margin-right: 2px;
 }
+
+.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.mode-btn { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 10px 12px; border-radius: 10px; border: 2px solid transparent; background: var(--panel-2); color: var(--text); cursor: pointer; font: inherit; }
+.mode-btn small { color: var(--muted); font-size: 12px; line-height: 1.4; }
+.mode-btn.active { border-color: var(--accent); background: #7c5cff33; }
+.mode-btn:disabled { cursor: default; opacity: 1; }
+.mode-btn:disabled:not(.active) { opacity: .45; }
+.modes.compact { margin: 12px 0 4px; }
+.modes.compact small { display: none; }
+.mode-tag { display: inline-block; margin: 0 0 10px; padding: 3px 10px; border-radius: 999px; background: #7c5cff33; color: var(--text); font-size: 13px; font-weight: 700; }
