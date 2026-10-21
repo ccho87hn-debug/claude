@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https://0.peerjs.com wss://0.peerjs.com http://localhost:* ws://localhost:*">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https://*.googleapis.com https://0.peerjs.com wss://0.peerjs.com http://localhost:* ws://localhost:*">
   <title>가위바위보 배틀 베팅</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -46,9 +46,30 @@
       </div>
     </section>
 
-    <aside class="panel" id="lobbyPanel">
-      <h2>내 이름</h2>
-      <input id="myName" class="text-input" maxlength="8" autocomplete="off">
+    <aside class="panel" id="authPanel">
+      <h2>로그인</h2>
+      <p class="lead">아이디로 로그인하면 어느 컴퓨터에서 하든 내 코인과 전적이 그대로 있어요.</p>
+      <form id="authForm" class="auth-form">
+        <input id="authName" class="text-input" maxlength="10" placeholder="아이디 (한글·영어·숫자 2~10자)" autocomplete="username">
+        <input id="authPass" class="text-input" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="current-password">
+        <div class="auth-actions">
+          <button id="signUp" class="ghost" type="button">회원가입</button>
+          <button id="logIn" class="primary" type="submit">로그인</button>
+        </div>
+      </form>
+      <p class="hint" id="authMsg">로그인 정보를 확인하는 중이에요...</p>
+      <button id="noLogin" class="link-btn" type="button">로그인 없이 하기 (코인은 이 컴퓨터에만 저장돼요)</button>
+    </aside>
+
+    <aside class="panel hidden" id="lobbyPanel">
+      <div class="me-row" id="meRow">
+        <span>👤 <b id="meName"></b></span>
+        <button id="logOut" class="ghost small">로그아웃</button>
+      </div>
+      <div id="guestName">
+        <h2>내 이름</h2>
+        <input id="myName" class="text-input" maxlength="8" autocomplete="off">
+      </div>
 
       <h2>혼자 하기</h2>
       <button id="solo" class="primary big">혼자 하기</button>
@@ -136,6 +157,10 @@
   </main>
 
   <script src="vendor/peerjs.min.js"></script>
+  <script src="vendor/firebase-app-compat.js"></script>
+  <script src="vendor/firebase-auth-compat.js"></script>
+  <script src="vendor/firebase-firestore-compat.js"></script>
+  <script src="account.js"></script>
   <script src="logic.js"></script>
   <script src="net.js"></script>
   <script src="game.js"></script>

@@ -25,8 +25,10 @@ function loadSave() {
   } catch {}
   return { coins: START_COINS, wins: 0, losses: 0, best: 0 };
 }
-const save = loadSave();
+let save = loadSave();
+let account = false; // signed in with Firebase: coins live on the account instead of this computer
 function persist() {
+  if (account) { Account.save(save); return; }
   try { localStorage.setItem("rpsBattle.save", JSON.stringify(save)); } catch {}
 }
 const cleanName = (n) => String(n || "").trim().slice(0, 8) || "손님";
@@ -114,7 +116,7 @@ function spawn(c) {
 
 // ---------- Panels ----------
 function showPanel(id) {
-  for (const p of ["lobbyPanel", "roomPanel", "countPanel", "betPanel", "livePanel"]) $(p).classList.toggle("hidden", p !== id);
+  for (const p of ["authPanel", "lobbyPanel", "roomPanel", "countPanel", "betPanel", "livePanel"]) $(p).classList.toggle("hidden", p !== id);
 }
 
 const nameOf = (id) => (members.find((m) => m.id === id) || {}).name || "?";
@@ -350,6 +352,70 @@ function finishRound(winner) {
   beep(good ? 880 : 220, 0.25, good ? "triangle" : "sawtooth");
 }
 
+// ---------- Accounts ----------
+function authMessage(text, warn = false) {
+  const m = $("authMsg");
+  m.textContent = text;
+  m.classList.toggle("warn", warn);
+}
+
+function enterAccount(profile) {
+  account = true;
+  save = {
+    name: profile.name,
+    coins: Number.isInteger(profile.coins) ? profile.coins : 0,
+    wins: profile.wins || 0, losses: profile.losses || 0, best: profile.best || 0,
+  };
+  $("authPass").value = "";
+  showLobby();
+}
+
+function showLobby() {
+  $("meRow").classList.toggle("hidden", !account);
+  $("guestName").classList.toggle("hidden", account);
+  $("meName").textContent = save.name;
+  $("myName").value = save.name || "";
+  lobbyMessage("");
+  showPanel("lobbyPanel");
+  refreshWallet();
+}
+
+async function authAction(kind) {
+  const name = $("authName").value.trim();
+  const password = $("authPass").value;
+  const bad = window.Account ? Account.checkInput(name, password) : "로그인 기능을 불러오지 못했어요.";
+  if (bad) { authMessage(bad, true); return; }
+  authMessage(kind === "signUp" ? "가입하는 중이에요..." : "로그인하는 중이에요...");
+  $("logIn").disabled = $("signUp").disabled = true;
+  try {
+    enterAccount(await (kind === "signUp" ? Account.signUp(name, password) : Account.logIn(name, password)));
+    authMessage("");
+  } catch (e) {
+    authMessage(e.message, true);
+  } finally {
+    $("logIn").disabled = $("signUp").disabled = false;
+  }
+}
+
+async function logOut() {
+  if (room) leaveRoom();
+  await Account.logOut();
+  account = false;
+  save = loadSave();
+  authMessage("로그아웃했어요.");
+  showPanel("authPanel");
+  refreshWallet();
+}
+
+async function restoreLogin() {
+  if (!window.Account) { authMessage("로그인 기능을 불러오지 못했어요. 로그인 없이 할 수 있어요.", true); return; }
+  try {
+    const profile = await Account.restore();
+    if (profile) { enterAccount(profile); return; }
+  } catch {}
+  authMessage("");
+}
+
 // ---------- Lobby and rooms ----------
 function lobbyMessage(text, warn = false) {
   const m = $("lobbyMsg");
@@ -358,6 +424,7 @@ function lobbyMessage(text, warn = false) {
 }
 
 function setName() {
+  if (account) return save.name;
   save.name = cleanName($("myName").value);
   $("myName").value = save.name;
   persist();
@@ -848,6 +915,10 @@ document.querySelectorAll("[data-share]").forEach((b) =>
   b.addEventListener("click", () => setStake(quickAmount(b.dataset.share, save.coins, others()))));
 document.querySelector("[data-clear]").addEventListener("click", () => setStake(0));
 $("watch").addEventListener("click", onWatchClick);
+$("authForm").addEventListener("submit", (e) => { e.preventDefault(); authAction("logIn"); });
+$("signUp").addEventListener("click", () => authAction("signUp"));
+$("noLogin").addEventListener("click", () => { account = false; save = loadSave(); showLobby(); });
+$("logOut").addEventListener("click", logOut);
 $("solo").addEventListener("click", playSolo);
 $("hostRoom").addEventListener("click", hostRoom);
 $("joinRoom").addEventListener("click", joinRoom);
@@ -874,7 +945,7 @@ window.addEventListener("beforeunload", () => { if (room) room.close(); });
 new ResizeObserver(resize).observe(canvas);
 buildSprites();
 resize();
-$("myName").value = save.name || "";
 refreshWallet();
 updateHud();
+restoreLogin();
 requestAnimationFrame(frame);
