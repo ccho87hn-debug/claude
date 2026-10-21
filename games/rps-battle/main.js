@@ -10,7 +10,8 @@ function createWindow() {
     backgroundColor: "#12141c",
     title: "가위바위보 배틀",
     icon: path.join(__dirname, "build", "icon.png"),
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true },
+    // The host's game keeps running and streaming to friends even when its window is in the background.
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false },
   });
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
 }

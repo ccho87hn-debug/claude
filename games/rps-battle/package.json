@@ -1,7 +1,7 @@
 {
   "name": "rps-battle",
   "productName": "가위바위보 배틀",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "가위, 바위, 보가 부딪히며 서로를 바꾸는 배틀에 코인을 거는 게임",
   "main": "main.js",
   "scripts": {

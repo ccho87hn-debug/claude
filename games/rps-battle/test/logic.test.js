@@ -49,3 +49,23 @@ test("random lineups always include every type within bounds", () => {
     for (const t of RPS.TYPES) assert.ok(c[t] >= RPS.LINEUP_MIN && c[t] <= RPS.LINEUP_MAX);
   }
 });
+
+test("settle pays winners at the lineup's odds and takes losers' bets", () => {
+  const lineup = { rock: 10, paper: 10, scissors: 10 };
+  assert.deepEqual(RPS.settle({ pick: "rock", bet: 100 }, lineup, "rock"), { won: true, returned: 270, delta: 170 });
+  assert.deepEqual(RPS.settle({ pick: "paper", bet: 100 }, lineup, "rock"), { won: false, returned: 0, delta: -100 });
+  assert.deepEqual(RPS.settle({ pick: "rock", bet: 0 }, lineup, "rock"), { won: true, returned: 0, delta: 0 });
+});
+
+test("room codes are five readable characters and normalize from typed input", () => {
+  assert.equal(RPS.makeRoomCode(() => 0), "AAAAA");
+  for (let i = 0; i < 100; i++) assert.match(RPS.makeRoomCode(), /^[A-HJKMNP-Z2-9]{5}$/);
+  assert.equal(RPS.normalizeCode(" ab-c 12 "), "ABC12");
+  assert.equal(RPS.normalizeCode(undefined), "");
+});
+
+test("units survive a pack/unpack round trip", () => {
+  const units = [{ x: 10.4, y: 20.6, type: "paper" }, { x: 1, y: 2, type: "scissors" }];
+  assert.deepEqual(RPS.packUnits(units), [10, 21, 1, 1, 2, 2]);
+  assert.deepEqual(RPS.unpackUnits(RPS.packUnits(units)), [{ x: 10, y: 21, type: "paper" }, { x: 1, y: 2, type: "scissors" }]);
+});

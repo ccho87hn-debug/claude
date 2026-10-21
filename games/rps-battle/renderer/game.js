@@ -1,4 +1,4 @@
-const { TYPES, NAMES, EMOJI, clash, odds, payout, validate, randomLineup, survivors } = window.RPS;
+const { TYPES, NAMES, EMOJI, clash, odds, payout, validate, randomLineup, settle, normalizeCode, packUnits, unpackUnits, survivors } = window.RPS;
 
 // ---------- Arena constants (logical units; the canvas scales them to fit) ----------
 const W = 900;
@@ -11,6 +11,7 @@ const SUDDEN_DEATH_AT = 60; // seconds; after this, everyone speeds up so a roun
 const COLORS = { rock: "#ff5a4e", paper: "#3d9bff", scissors: "#3fd46f" };
 const START_COINS = 1000;
 const BAILOUT = 500;
+const SNAP_EVERY = 50; // ms between position updates the host sends to guests
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("arena");
@@ -28,6 +29,14 @@ const save = loadSave();
 function persist() {
   try { localStorage.setItem("rpsBattle.save", JSON.stringify(save)); } catch {}
 }
+const cleanName = (n) => String(n || "").trim().slice(0, 8) || "손님";
+
+// Small DOM helper: el("div", { className: "x" }, child, "text", ...)
+function el(tag, props = {}, ...children) {
+  const e = Object.assign(document.createElement(tag), props);
+  for (const c of children) e.append(c);
+  return e;
+}
 
 // ---------- Round state ----------
 // idle -> countdown (1, 2, 3) -> betting (lineup shown, player bets) -> running -> done
@@ -35,13 +44,23 @@ let phase = "idle";
 let units = [];
 let particles = [];
 let lineup = null;
-let pick = null;
-let bet = 0;
+let pick = null; // my choice while betting
 let clock = 0;
 let countdown = 0;
 let revealAt = 0; // time the lineup was revealed, for the pop-in animation and banner
 let goAt = -1; // time the battle started, for the "GO!" flash
 let speed = 1;
+
+// ---------- Players ----------
+// Solo play is a room of one: the same code path with no network.
+let mode = "solo"; // solo | host | guest
+let room = null; // Net.Room while online
+let myId = "host"; // the host (and a solo player) is always "host"; guests use their peer id
+let members = []; // [{ id, name }]
+let roomBets = {}; // id -> { pick, bet } confirmed this round
+let locked = false; // a guest has sent their bet
+let staked = 0; // coins taken from my wallet this round, refunded if the room drops before the end
+let lastSnap = 0;
 
 // ---------- Sprites: each hand is pre-drawn once at high resolution ----------
 const sprites = {};
@@ -94,7 +113,31 @@ function spawn(c) {
 
 // ---------- Panels ----------
 function showPanel(id) {
-  for (const p of ["idlePanel", "countPanel", "betPanel", "livePanel"]) $(p).classList.toggle("hidden", p !== id);
+  for (const p of ["lobbyPanel", "roomPanel", "countPanel", "betPanel", "livePanel"]) $(p).classList.toggle("hidden", p !== id);
+}
+
+const nameOf = (id) => (members.find((m) => m.id === id) || {}).name || "?";
+
+function refreshRoom() {
+  $("roomCode").textContent = room ? room.code : "";
+  $("roomTip").textContent = mode === "host"
+    ? "친구에게 이 코드를 알려 주세요. 친구는 자기 컴퓨터에서 '참가'에 코드를 넣으면 들어와요."
+    : "방에 들어왔어요. 판이 시작되면 같이 걸 수 있어요.";
+  $("members").replaceChildren(...members.map((m) => {
+    const tags = [m.id === "host" ? "방장" : "", m.id === myId ? "나" : ""].filter(Boolean).join(" · ");
+    return el("div", { className: "member" }, el("b", { textContent: m.name }), el("small", { textContent: tags }));
+  }));
+  $("newRound").classList.toggle("hidden", mode !== "host");
+  $("roomWait").classList.toggle("hidden", mode !== "guest");
+}
+
+// Everyone's bets in this room (online only).
+function betRows() {
+  return members.map((m) => {
+    const b = roomBets[m.id];
+    const what = !b ? "고르는 중..." : `${EMOJI[b.pick]} ${NAMES[b.pick]} · ` + (b.bet ? `🪙 ${b.bet.toLocaleString()}` : "구경");
+    return el("div", { className: "room-bet " + (b ? b.pick : "") }, el("b", { textContent: m.name }), el("span", { textContent: what }));
+  });
 }
 
 function refreshBet() {
@@ -105,22 +148,37 @@ function refreshBet() {
   for (const btn of document.querySelectorAll(".pick")) {
     const o = odds(lineup, btn.dataset.type);
     btn.querySelector(".odds").textContent = o ? `x${o}` : "-";
-    btn.disabled = !o;
+    btn.disabled = !o || locked;
     btn.classList.toggle("selected", btn.dataset.type === pick);
   }
+  document.querySelectorAll(".bet input, .bet button").forEach((e) => (e.disabled = locked));
   const b = Math.floor(+$("betAmount").value);
   const err = validate({ counts: lineup, pick, bet: b, coins: save.coins });
   const hint = $("hint");
-  hint.classList.toggle("warn", !!err);
-  if (err) hint.textContent = err;
+  hint.classList.toggle("warn", !!err && !locked);
+  if (locked) hint.textContent = "다른 사람들이 다 걸면 방장이 배틀을 시작해요.";
+  else if (err) hint.textContent = err;
   else if (b === 0) hint.textContent = "0코인이면 구경만 해요.";
   else hint.textContent = `이기면 🪙 ${payout(b, lineup, pick).toLocaleString()} 받아요.`;
-  $("start").disabled = !!err;
+
+  const start = $("start");
+  if (mode === "guest") {
+    start.textContent = locked ? "걸었어요 ✓" : "이걸로 걸기";
+    start.disabled = locked || !!err;
+  } else {
+    const others = members.filter((m) => m.id !== myId);
+    const ready = others.filter((m) => roomBets[m.id]).length;
+    start.textContent = others.length ? `배틀 시작! (친구 ${ready}/${others.length}명 걸었어요)` : "배틀 시작!";
+    start.disabled = !!err;
+  }
+  const list = $("roomBets");
+  list.classList.toggle("hidden", mode === "solo");
+  if (mode !== "solo") list.replaceChildren(...betRows());
 }
 
 function refreshWallet() {
   $("coins").textContent = save.coins.toLocaleString();
-  $("bailout").classList.toggle("hidden", !(save.coins < 10 && (phase === "idle" || phase === "done" || phase === "betting")));
+  $("bailout").classList.toggle("hidden", !(save.coins < 10 && phase !== "running" && phase !== "countdown"));
   $("betAmount").max = save.coins;
   const total = save.wins + save.losses;
   $("record").innerHTML = total
@@ -129,13 +187,23 @@ function refreshWallet() {
 }
 
 // ---------- Round flow ----------
+// Solo and host decide everything; a guest follows the host's messages.
 function newRound() {
+  if (mode === "guest") return;
+  if (room) room.send({ t: "countdown" });
+  beginCountdown();
+}
+
+function beginCountdown() {
   phase = "countdown";
   countdown = 3;
   units = [];
   particles = [];
   lineup = null;
   pick = null;
+  roomBets = {};
+  locked = false;
+  staked = 0;
   clock = 0;
   goAt = -1;
   $("result").classList.add("hidden");
@@ -147,6 +215,11 @@ function newRound() {
 function reveal() {
   lineup = randomLineup();
   units = spawn(lineup);
+  if (room) room.send({ t: "reveal", lineup, u: packUnits(units) });
+  enterBetting();
+}
+
+function enterBetting() {
   revealAt = performance.now();
   phase = "betting";
   const b = $("betAmount");
@@ -157,45 +230,268 @@ function reveal() {
   updateHud();
 }
 
-function startBattle() {
-  bet = Math.floor(+$("betAmount").value);
+function onStartClick() {
+  const bet = Math.floor(+$("betAmount").value);
   if (validate({ counts: lineup, pick, bet, coins: save.coins })) return;
-  save.coins -= bet;
+  if (mode === "guest") {
+    locked = true;
+    room.send({ t: "bet", pick, bet });
+    refreshBet();
+    return;
+  }
+  roomBets[myId] = { pick, bet };
+  if (room) room.send({ t: "go", bets: roomBets });
+  go();
+}
+
+function go() {
+  const mine = roomBets[myId];
+  staked = mine ? mine.bet : 0;
+  save.coins -= staked;
   persist();
   phase = "running";
   goAt = performance.now();
+  lastSnap = 0;
   beep(1040, 0.15, "sine");
   showPanel("livePanel");
-  $("liveBet").innerHTML = bet
-    ? `${EMOJI[pick]} <b>${NAMES[pick]}</b>에 🪙 ${bet.toLocaleString()} 걸었어요<br>배당 x${odds(lineup, pick)} · 이기면 🪙 ${payout(bet, lineup, pick).toLocaleString()}`
-    : `${EMOJI[pick]} <b>${NAMES[pick]}</b> 응원 중 (구경 모드)`;
+  $("liveBet").innerHTML = !mine
+    ? "이번 판은 구경 중이에요."
+    : mine.bet
+      ? `${EMOJI[mine.pick]} <b>${NAMES[mine.pick]}</b>에 🪙 ${mine.bet.toLocaleString()} 걸었어요<br>배당 x${odds(lineup, mine.pick)} · 이기면 🪙 ${payout(mine.bet, lineup, mine.pick).toLocaleString()}`
+      : `${EMOJI[mine.pick]} <b>${NAMES[mine.pick]}</b> 응원 중 (구경 모드)`;
+  $("liveBets").replaceChildren(...(mode === "solo" ? [] : betRows()));
+  $("speedRow").classList.toggle("hidden", mode === "guest");
   refreshWallet();
 }
 
 function finishRound(winner) {
   phase = "done";
-  const won = winner === pick;
-  let delta;
-  if (won) {
-    const gain = payout(bet, lineup, pick);
-    save.coins += gain;
-    delta = gain - bet;
-    if (bet > 0) save.wins++;
-    save.best = Math.max(save.best, delta);
-  } else {
-    delta = -bet;
-    if (bet > 0) save.losses++;
+  if (mode === "host") room.send({ t: "end", winner });
+  for (const u of units) u.type = winner;
+  const mine = roomBets[myId];
+  const r = mine ? settle(mine, lineup, winner) : null;
+  staked = 0;
+  if (r) {
+    save.coins += r.returned;
+    if (mine.bet > 0) {
+      if (r.won) { save.wins++; save.best = Math.max(save.best, r.delta); } else save.losses++;
+    }
+    persist();
   }
-  persist();
   refreshWallet();
+  updateHud();
   $("resultEmoji").textContent = EMOJI[winner];
   $("resultTitle").textContent = `${NAMES[winner]} 최종 승리!`;
   const rc = $("resultCoins");
-  rc.className = "result-coins " + (won ? "win" : "lose");
-  if (bet === 0) rc.textContent = won ? "응원 성공! 🎉" : "아쉽네요!";
-  else rc.textContent = won ? `적중! +🪙 ${delta.toLocaleString()}` : `꽝! -🪙 ${bet.toLocaleString()}`;
+  rc.className = "result-coins " + (r && r.won ? "win" : "lose");
+  if (!r) rc.textContent = "구경 끝!";
+  else if (mine.bet === 0) rc.textContent = r.won ? "응원 성공! 🎉" : "아쉽네요!";
+  else rc.textContent = r.won ? `적중! +🪙 ${r.delta.toLocaleString()}` : `꽝! -🪙 ${mine.bet.toLocaleString()}`;
+  // Everyone else's outcome, online only.
+  const others = mode === "solo" ? [] : members.filter((m) => m.id !== myId && roomBets[m.id]);
+  $("resultLines").replaceChildren(...others.map((m) => {
+    const b = roomBets[m.id];
+    const o = settle(b, lineup, winner);
+    const text = b.bet === 0 ? (o.won ? "응원 성공" : "아쉽네요") : o.won ? `+🪙 ${o.delta.toLocaleString()}` : `-🪙 ${b.bet.toLocaleString()}`;
+    return el("div", { className: "result-line " + (o.won ? "win" : "lose") }, el("b", { textContent: m.name }), el("span", { textContent: `${EMOJI[b.pick]} ${text}` }));
+  }));
+  $("again").classList.toggle("hidden", mode === "guest");
+  $("resultWait").classList.toggle("hidden", mode !== "guest");
   $("result").classList.remove("hidden");
+  const won = r && r.won;
   beep(won ? 880 : 220, 0.25, won ? "triangle" : "sawtooth");
+}
+
+// ---------- Lobby and rooms ----------
+function lobbyMessage(text, warn = false) {
+  const m = $("lobbyMsg");
+  m.textContent = text;
+  m.classList.toggle("warn", warn);
+}
+
+function setName() {
+  save.name = cleanName($("myName").value);
+  $("myName").value = save.name;
+  persist();
+  return save.name;
+}
+
+function playSolo() {
+  mode = "solo";
+  myId = "host";
+  members = [{ id: myId, name: setName() }];
+  newRound();
+}
+
+const handlers = {
+  onMessage: (from, msg) => (mode === "host" ? hostReceive(from, msg) : guestReceive(msg)),
+  onLeave: (id) => {
+    members = members.filter((m) => m.id !== id);
+    delete roomBets[id];
+    broadcastMembers();
+    if (phase === "betting") refreshBet();
+  },
+  onClosed: () => leaveRoom("방이 닫혔어요. 방장이 나갔거나 연결이 끊겼어요."),
+};
+
+async function hostRoom() {
+  const name = setName();
+  lobbyMessage("방을 만드는 중이에요...");
+  try {
+    room = await Net.Room.host(handlers);
+  } catch (e) {
+    lobbyMessage(e.message, true);
+    return;
+  }
+  mode = "host";
+  myId = "host";
+  members = [{ id: myId, name }];
+  phase = "idle";
+  lobbyMessage("");
+  showPanel("roomPanel");
+  refreshRoom();
+}
+
+async function joinRoom() {
+  const code = normalizeCode($("joinCode").value);
+  if (code.length !== 5) { lobbyMessage("방 코드 5자리를 넣어 주세요.", true); return; }
+  const name = setName();
+  lobbyMessage("방에 들어가는 중이에요...");
+  try {
+    room = await Net.Room.join(code, handlers);
+  } catch (e) {
+    lobbyMessage(e.message, true);
+    return;
+  }
+  mode = "guest";
+  myId = room.peer.id;
+  members = [];
+  phase = "idle";
+  room.send({ t: "hello", name });
+  lobbyMessage("");
+  showPanel("roomPanel");
+  refreshRoom();
+}
+
+function leaveRoom(why = "") {
+  if (staked && phase !== "done") {
+    save.coins += staked; // the round never finished, so the bet comes back
+    persist();
+  }
+  staked = 0;
+  if (room) room.close();
+  room = null;
+  mode = "solo";
+  members = [];
+  roomBets = {};
+  phase = "idle";
+  units = [];
+  particles = [];
+  lineup = null;
+  clock = 0;
+  $("result").classList.add("hidden");
+  showPanel("lobbyPanel");
+  lobbyMessage(why, !!why);
+  refreshWallet();
+  updateHud();
+}
+
+function broadcastMembers() {
+  room.send({ t: "room", members });
+  refreshRoom();
+}
+
+function hostReceive(from, msg) {
+  if (msg.t === "hello") {
+    if (members.some((m) => m.id === from)) return;
+    if (members.length >= 8) { room.sendTo(from, { t: "full" }); room.kick(from); return; }
+    members.push({ id: from, name: cleanName(msg.name) });
+    broadcastMembers();
+    // Late joiners can still bet on a round that is being bet on.
+    if (phase === "betting") {
+      room.sendTo(from, { t: "reveal", lineup, u: packUnits(units) });
+      room.sendTo(from, { t: "bets", bets: roomBets });
+      refreshBet();
+    }
+  } else if (msg.t === "bet" && phase === "betting") {
+    const bet = Math.floor(+msg.bet);
+    if (!TYPES.includes(msg.pick) || !odds(lineup, msg.pick) || !(bet >= 0)) return;
+    roomBets[from] = { pick: msg.pick, bet };
+    room.send({ t: "bets", bets: roomBets });
+    refreshBet();
+  }
+}
+
+function guestReceive(msg) {
+  switch (msg.t) {
+    case "room":
+      members = msg.members;
+      refreshRoom();
+      if (phase === "betting") refreshBet();
+      break;
+    case "full":
+      leaveRoom("방이 꽉 찼어요.");
+      break;
+    case "countdown":
+      beginCountdown();
+      break;
+    case "reveal":
+      if (phase === "betting") return;
+      if (phase !== "countdown") beginCountdown();
+      lineup = msg.lineup;
+      units = unpackUnits(msg.u).map(withLooks);
+      enterBetting();
+      break;
+    case "bets":
+      roomBets = msg.bets || {};
+      if (phase === "betting") refreshBet();
+      break;
+    case "go":
+      if (!lineup) return;
+      roomBets = msg.bets || {};
+      if (roomBets[myId]) pick = roomBets[myId].pick;
+      go();
+      break;
+    case "snap":
+      applySnap(msg);
+      break;
+    case "end":
+      if (phase === "running") finishRound(msg.winner);
+      break;
+  }
+}
+
+function withLooks(u) {
+  return { ...u, tx: u.x, ty: u.y, vx: 0, vy: 0, flash: 0, bob: Math.random() * 6, delay: Math.random() * 0.7 };
+}
+
+// A guest moves its hands toward the host's latest positions and plays the effects for any switches.
+function applySnap(msg) {
+  if (phase !== "running") return;
+  const next = unpackUnits(msg.u);
+  if (next.length !== units.length) units = next.map(withLooks);
+  next.forEach((n, i) => {
+    const u = units[i];
+    u.tx = n.x;
+    u.ty = n.y;
+    if (u.type !== n.type) {
+      u.type = n.type;
+      u.flash = 0.35;
+      burst(u.x, u.y, COLORS[n.type]);
+      beep({ rock: 330, paper: 440, scissors: 554 }[n.type], 0.06, "square");
+    }
+  });
+  clock = msg.c;
+}
+
+function followHost(dt) {
+  const k = Math.min(1, dt * 18);
+  for (const u of units) {
+    u.x += (u.tx - u.x) * k;
+    u.y += (u.ty - u.y) * k;
+    if (u.flash > 0) u.flash -= dt;
+  }
+  stepParticles(dt);
 }
 
 // ---------- Simulation ----------
@@ -391,7 +687,8 @@ function draw(t) {
   ctx.globalAlpha = 1;
 
   if (phase === "idle") {
-    bigText("새 판을 시작해 보세요", 40, 0.75);
+    const text = !room ? "혼자 하거나 친구랑 방을 만들어 보세요" : mode === "host" ? "친구가 다 들어오면 새 판을 시작하세요" : "방장이 판을 시작하길 기다리는 중...";
+    bigText(text, 34, 0.75);
   } else if (phase === "countdown") {
     const n = Math.ceil(countdown);
     const f = countdown - Math.floor(countdown);
@@ -451,10 +748,19 @@ function frame(t) {
     const before = Math.ceil(countdown);
     countdown -= dt;
     if (Math.ceil(countdown) !== before && countdown > 0) beep(520, 0.12, "sine");
-    if (countdown <= 0) { beep(780, 0.2, "triangle"); reveal(); }
+    if (countdown <= 0 && before > 0) beep(780, 0.2, "triangle");
+    if (countdown <= 0 && mode !== "guest") reveal(); // a guest waits for the host's lineup
   } else if (phase === "running") {
-    const sub = speed * 2;
-    for (let i = 0; i < sub && phase === "running"; i++) step(dt / 2);
+    if (mode === "guest") {
+      followHost(dt);
+    } else {
+      const sub = speed * 2;
+      for (let i = 0; i < sub && phase === "running"; i++) step(dt / 2);
+      if (room && phase === "running" && t - lastSnap >= SNAP_EVERY) {
+        lastSnap = t;
+        room.send({ t: "snap", c: Math.round(clock * 10) / 10, u: packUnits(units) });
+      }
+    }
     updateHud();
   } else if (phase === "done") {
     stepParticles(dt);
@@ -475,9 +781,16 @@ document.querySelectorAll("[data-add]").forEach((b) =>
   }));
 document.querySelector("[data-half]").addEventListener("click", () => { $("betAmount").value = Math.floor(save.coins / 2); refreshBet(); });
 document.querySelector("[data-all]").addEventListener("click", () => { $("betAmount").value = save.coins; refreshBet(); });
+$("solo").addEventListener("click", playSolo);
+$("hostRoom").addEventListener("click", hostRoom);
+$("joinRoom").addEventListener("click", joinRoom);
+$("joinCode").addEventListener("keydown", (e) => { if (e.key === "Enter") joinRoom(); });
+$("myName").addEventListener("change", setName);
 $("newRound").addEventListener("click", newRound);
-$("start").addEventListener("click", startBattle);
+$("start").addEventListener("click", onStartClick);
 $("again").addEventListener("click", newRound);
+$("leave").addEventListener("click", () => leaveRoom());
+$("leave2").addEventListener("click", () => leaveRoom());
 $("bailout").addEventListener("click", () => {
   save.coins += BAILOUT;
   persist();
@@ -489,10 +802,12 @@ document.querySelectorAll(".speed-btn").forEach((b) =>
     speed = +b.dataset.speed;
     document.querySelectorAll(".speed-btn").forEach((x) => x.classList.toggle("active", x === b));
   }));
+window.addEventListener("beforeunload", () => { if (room) room.close(); });
 
 new ResizeObserver(resize).observe(canvas);
 buildSprites();
 resize();
+$("myName").value = save.name || "";
 if (+$("betAmount").value > save.coins) $("betAmount").value = save.coins;
 refreshWallet();
 updateHud();

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https://0.peerjs.com wss://0.peerjs.com http://localhost:* ws://localhost:*">
   <title>가위바위보 배틀 베팅</title>
   <link rel="stylesheet" href="style.css">
 </head>
@@ -36,20 +36,48 @@
           <div class="result-emoji" id="resultEmoji">✊</div>
           <div class="result-title" id="resultTitle">바위 승리!</div>
           <div class="result-coins" id="resultCoins">+0</div>
-          <button id="again" class="primary">다음 판</button>
+          <div class="result-lines" id="resultLines"></div>
+          <p class="result-wait hidden" id="resultWait">방장이 다음 판을 시작하길 기다리고 있어요.</p>
+          <div class="result-actions">
+            <button id="leave2" class="ghost">나가기</button>
+            <button id="again" class="primary">다음 판</button>
+          </div>
         </div>
       </div>
     </section>
 
-    <aside class="panel" id="idlePanel">
-      <h2>새 판</h2>
-      <p class="lead">1, 2, 3 하면 이번 판에 바위, 보자기, 가위가 몇 마리씩 나오는지 공개돼요. 그걸 보고 누가 이길지 코인을 걸면 돼요.</p>
-      <button id="newRound" class="primary big">새 판 시작</button>
+    <aside class="panel" id="lobbyPanel">
+      <h2>내 이름</h2>
+      <input id="myName" class="text-input" maxlength="8" autocomplete="off">
+
+      <h2>혼자 하기</h2>
+      <button id="solo" class="primary big">혼자 하기</button>
+
+      <h2>친구랑 같이 하기 (다른 컴퓨터)</h2>
+      <button id="hostRoom" class="ghost wide">방 만들기</button>
+      <div class="join-row">
+        <input id="joinCode" class="text-input code" maxlength="5" placeholder="방 코드" autocomplete="off">
+        <button id="joinRoom" class="ghost">참가</button>
+      </div>
+      <p class="hint" id="lobbyMsg"></p>
+
       <div class="rules">
         <b>규칙</b> 가위가 보자기에 닿으면 보자기가 가위로, 보자기가 바위에 닿으면 바위가 보자기로,
         바위가 가위에 닿으면 가위가 바위로 바뀌어요. 마지막에 한 종류만 남으면 끝!
+        1, 2, 3 하면 이번 판 구성이 공개되고, 그걸 보고 누가 이길지 코인을 걸어요.
         적게 나온 쪽에 걸수록 배당이 커요.
       </div>
+    </aside>
+
+    <aside class="panel hidden" id="roomPanel">
+      <h2>방 코드</h2>
+      <div class="room-code" id="roomCode">-----</div>
+      <p class="lead" id="roomTip"></p>
+      <h2>참가자</h2>
+      <div class="members" id="members"></div>
+      <button id="newRound" class="primary big">새 판 시작</button>
+      <p class="hint" id="roomWait">방장이 판을 시작하길 기다리고 있어요.</p>
+      <button id="leave" class="ghost wide">나가기</button>
     </aside>
 
     <aside class="panel hidden" id="countPanel">
@@ -84,13 +112,15 @@
       </div>
       <p class="hint" id="hint"></p>
       <button id="start" class="primary big">배틀 시작!</button>
+      <div class="room-bets hidden" id="roomBets"></div>
       <div class="record" id="record"></div>
     </aside>
 
     <aside class="panel hidden" id="livePanel">
       <h2>배틀 진행 중</h2>
       <p class="live-bet" id="liveBet"></p>
-      <div class="speed">
+      <div class="room-bets" id="liveBets"></div>
+      <div class="speed" id="speedRow">
         <span>속도</span>
         <button class="ghost small speed-btn active" data-speed="1">1x</button>
         <button class="ghost small speed-btn" data-speed="2">2x</button>
@@ -100,7 +130,9 @@
     </aside>
   </main>
 
+  <script src="vendor/peerjs.min.js"></script>
   <script src="logic.js"></script>
+  <script src="net.js"></script>
   <script src="game.js"></script>
 </body>
 </html>
