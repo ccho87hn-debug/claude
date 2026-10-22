@@ -42,7 +42,7 @@ Firebase 콘솔에서 Authentication의 이메일/비밀번호 로그인을 켜�
 
 ## 설치
 
-GitHub의 **Actions → 가위바위보 배틀 설치 파일 만들기** 에서 최신 실행의 `rps-battle-windows-setup` 을 내려받아 설치 파일을 실행하면 돼요. 설치 파일을 실행하면 묻지 않고 바로 깔리고 게임이 켜져요.
+[최신 설치 파일 받기](https://github.com/ccho87hn-debug/claude/releases/latest/download/rps-battle-setup.exe) (GitHub 로그인 없이 바로 받아져요). 버전별 파일은 [Releases](https://github.com/ccho87hn-debug/claude/releases)에 있어요. 설치 파일을 실행하면 묻지 않고 바로 깔리고 게임이 켜져요.
 
 ## 개발
 
