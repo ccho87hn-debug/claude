@@ -1,7 +1,7 @@
 {
   "name": "rps-battle",
   "productName": "가위바위보 배틀",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "가위, 바위, 보가 부딪히며 서로를 바꾸는 배틀에 코인을 거는 게임",
   "main": "main.js",
   "scripts": {
@@ -12,9 +12,26 @@
   "build": {
     "appId": "com.rpsbattle.app",
     "productName": "가위바위보 배틀",
-    "files": ["main.js", "renderer/**/*", "build/icon.png", "package.json"],
-    "win": { "target": "nsis", "icon": "build/icon.ico" },
-    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true, "artifactName": "rps-battle-setup-${version}.exe" }
+    "files": [
+      "main.js",
+      "renderer/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "runAfterFinish": true,
+      "artifactName": "rps-battle-setup-${version}.exe"
+    },
+    "electronLanguages": [
+      "ko",
+      "en-US"
+    ]
   },
   "devDependencies": {
     "electron": "33.2.1",

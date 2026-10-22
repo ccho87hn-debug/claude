@@ -31,3 +31,4 @@ jobs:
           name: rps-battle-windows-setup
           path: games/rps-battle/dist/*.exe
           if-no-files-found: error
+          compression-level: 0
