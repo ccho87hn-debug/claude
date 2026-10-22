@@ -1,0 +1,56 @@
+name: 가위바위보 배틀 설치 파일 만들기
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "games/rps-battle/**"
+      - ".github/workflows/build-rps-battle.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write # publish the installer as a GitHub release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: games/rps-battle
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: games/rps-battle/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run dist:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rps-battle-windows-setup
+          path: games/rps-battle/dist/*.exe
+          if-no-files-found: error
+          compression-level: 0
+      # Releases download much faster than workflow artifacts and need no GitHub login.
+      # Each version gets its own release; the copy without a version keeps one link that always points at the newest.
+      - name: Prepare release files
+        id: rel
+        shell: bash
+        run: |
+          v=$(node -p "require('./package.json').version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          cp "dist/rps-battle-setup-$v.exe" dist/rps-battle-setup.exe
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: rps-battle-v${{ steps.rel.outputs.version }}
+          name: 가위바위보 배틀 ${{ steps.rel.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          make_latest: "true"
+          body: 아래 Assets에서 rps-battle-setup.exe 를 받아서 실행하면 바로 설치돼요.
+          files: |
+            games/rps-battle/dist/rps-battle-setup-${{ steps.rel.outputs.version }}.exe
+            games/rps-battle/dist/rps-battle-setup.exe

@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self' https://*.googleapis.com https://*.firebasedatabase.app wss://*.firebasedatabase.app https://*.firebaseio.com wss://*.firebaseio.com https://0.peerjs.com wss://0.peerjs.com http://localhost:* ws://localhost:*">
+  <title>가위바위보 배틀 베팅</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="auth-screen" id="authScreen">
+    <div class="auth-card">
+      <div class="auth-logo"><span class="h rock">✊</span><span class="h paper">✋</span><span class="h scissors">✌️</span></div>
+      <h1>가위바위보 배틀</h1>
+      <p class="auth-sub">부딪히면 바뀌는 손들, 마지막에 남을 쪽에 코인을 걸어요</p>
+      <div class="auth-tabs" role="tablist">
+        <button class="tab active" id="tabLogin" type="button">로그인</button>
+        <button class="tab" id="tabSignup" type="button">회원가입</button>
+      </div>
+      <form id="authForm" class="auth-form">
+        <label>아이디<input id="authName" class="text-input" maxlength="10" placeholder="한글·영어·숫자 2~10자" autocomplete="username"></label>
+        <label>비밀번호<input id="authPass" class="text-input" type="password" placeholder="6자 이상" autocomplete="current-password"></label>
+        <label class="hidden" id="pass2Row">비밀번호 확인<input id="authPass2" class="text-input" type="password" placeholder="한 번 더" autocomplete="new-password"></label>
+        <button id="authSubmit" class="primary big" type="submit">로그인</button>
+      </form>
+      <p class="hint" id="authMsg">로그인 정보를 확인하는 중이에요...</p>
+      <p class="auth-note" id="authNote">처음 가입하면 🪙 1,000을 받아요. 코인·전적·스킨은 계정에 저장돼서 어느 컴퓨터에서든 그대로예요.</p>
+      <button id="noLogin" class="link-btn" type="button">로그인 없이 하기 (코인은 이 컴퓨터에만 저장돼요)</button>
+    </div>
+  </div>
+
+  <header class="topbar">
+    <h1>✊✌️✋ 가위바위보 배틀</h1>
+    <div class="wallet">
+      <span class="coin-icon">🪙</span>
+      <span id="coins">0</span>
+      <span id="debtTag" class="debt-tag hidden"></span>
+    </div>
+  </header>
+
+  <main class="layout" id="layout">
+    <nav class="sidebar" id="sidebar">
+      <button class="nav-btn active" data-view="game"><i>🎮</i><span>게임</span></button>
+      <button class="nav-btn" data-view="work"><i>💼</i><span>일하기</span></button>
+      <button class="nav-btn" data-view="bank"><i>🏦</i><span>대출</span></button>
+      <button class="nav-btn" data-view="shop"><i>🛍️</i><span>상점</span></button>
+    </nav>
+
+    <section class="view hidden" id="workView">
+      <div class="work-card">
+        <div class="work-top">
+          <div>
+            <small>내 직급</small>
+            <h2 id="wRank"></h2>
+          </div>
+          <div class="work-pay">
+            <small>한 번 맞힐 때마다</small>
+            <b id="wPay"></b>
+          </div>
+        </div>
+        <div class="promo">
+          <div class="promo-bar"><div id="wBar"></div></div>
+          <small id="wNext"></small>
+        </div>
+        <div class="key-box" id="keyBox" tabindex="0">
+          <div class="key-cap" id="keyCap">?</div>
+          <p id="keyHint">화면에 나온 알파벳 키를 키보드에서 눌러요</p>
+        </div>
+        <div class="work-stats" id="wStats"></div>
+      </div>
+      <div class="ranks-card">
+        <h2>직급표</h2>
+        <div class="ranks" id="rankList"></div>
+        <p class="fine">맞힌 횟수가 쌓이면 승진해요. 틀리면 잠깐 멈춰요. 키를 꾹 누르고 있는 건 안 쳐 줘요.</p>
+      </div>
+    </section>
+
+    <section class="view hidden" id="bankView">
+      <div class="bank-card">
+        <h2 class="bank-title">🏦 코인은행 대출</h2>
+        <div class="asset-grid" id="bankGrid"></div>
+        <p class="lead">코인이 모자라면 은행에서 빌려요. 최대 🪙 5,000까지 빌릴 수 있고, 빚은 10분마다 3%씩 늘어나요. 앱을 꺼 둬도 이자는 붙어요.</p>
+        <h3>빌리기</h3>
+        <div class="bank-row">
+          <button class="ghost" data-borrow="500">+500</button>
+          <button class="ghost" data-borrow="1000">+1,000</button>
+          <button class="ghost" data-borrow="max">최대한</button>
+        </div>
+        <h3>갚기</h3>
+        <div class="bank-row">
+          <button class="ghost" data-repay="500">500 갚기</button>
+          <button class="ghost" data-repay="1000">1,000 갚기</button>
+          <button class="primary" data-repay="all">전부 갚기</button>
+        </div>
+        <p class="hint" id="bankMsg"></p>
+        <div class="bankrupt hidden" id="bankruptBox">
+          <p>코인도 없고 더 빌릴 수도 없어요. 파산 신청을 하면 빚이 없어지고 🪙 500으로 다시 시작해요. 파산 횟수는 기록에 남아요.</p>
+          <button id="bankrupt" class="sell-btn">파산 신청</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="arena-wrap">
+      <canvas id="arena"></canvas>
+      <div id="hud" class="hud">
+        <div class="pop-bar" id="popBar">
+          <div class="seg rock"></div><div class="seg paper"></div><div class="seg scissors"></div>
+        </div>
+        <div class="hud-row">
+          <span class="hud-count rock"><i data-glyph="rock">✊</i> <b id="cRock">0</b></span>
+          <span class="hud-count paper"><i data-glyph="paper">✋</i> <b id="cPaper">0</b></span>
+          <span class="hud-count scissors"><i data-glyph="scissors">✌️</i> <b id="cScissors">0</b></span>
+          <span class="hud-time" id="timer">0.0초</span>
+        </div>
+      </div>
+      <div id="result" class="overlay hidden">
+        <div class="result-card">
+          <div class="result-emoji" id="resultEmoji">✊</div>
+          <div class="result-title" id="resultTitle">바위 승리!</div>
+          <div class="result-coins" id="resultCoins">+0</div>
+          <div class="result-lines" id="resultLines"></div>
+          <p class="result-wait hidden" id="resultWait"></p>
+          <div class="result-actions">
+            <button id="leave2" class="ghost">나가기</button>
+            <button id="again" class="primary">다음 판</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel hidden" id="lobbyPanel">
+      <div class="me-row" id="meRow">
+        <span>👤 <b id="meName"></b></span>
+        <button id="logOut" class="ghost small">로그아웃</button>
+      </div>
+      <div id="guestName">
+        <h2>내 이름</h2>
+        <input id="myName" class="text-input" maxlength="8" autocomplete="off">
+      </div>
+
+
+      <h2>혼자 하기</h2>
+      <button id="solo" class="primary big">혼자 하기</button>
+
+      <h2>친구랑 같이 하기 (다른 컴퓨터)</h2>
+      <button id="hostRoom" class="ghost wide">방 만들기</button>
+      <div class="join-row">
+        <input id="joinCode" class="text-input code" maxlength="5" placeholder="방 코드" autocomplete="off">
+        <button id="joinRoom" class="ghost">참가</button>
+      </div>
+      <p class="hint" id="lobbyMsg"></p>
+
+      <div class="rules">
+        <b>규칙</b> 가위가 보자기에 닿으면 보자기가 가위로, 보자기가 바위에 닿으면 바위가 보자기로,
+        바위가 가위에 닿으면 가위가 바위로 바뀌어요. 마지막에 한 종류만 남으면 끝!
+        1, 2, 3 하면 이번 판 구성이 공개되고, 그걸 보고 누가 이길지 코인을 걸어요.
+        혼자 할 때는 적게 나온 쪽에 걸수록 배당이 커요.
+        같이 할 때는 맞힌 사람끼리 판돈을 다 나눠 가져요.
+      </div>
+    </aside>
+
+    <aside class="panel hidden" id="shopPanel">
+      <h2>스킨 상점</h2>
+      <p class="lead">스킨을 사면 내 화면에서 손 모양이 바뀌어요. 규칙은 똑같아요.</p>
+      <div class="skins" id="skinList"></div>
+      <p class="hint" id="shopMsg"></p>
+      <button id="closeShop" class="ghost wide">돌아가기</button>
+    </aside>
+
+    <aside class="panel hidden" id="roomPanel">
+      <h2>방 코드</h2>
+      <div class="room-code" id="roomCode">-----</div>
+      <p class="lead" id="roomTip"></p>
+      <h2>참가자</h2>
+      <div class="members" id="members"></div>
+      <h2>베팅 방식</h2>
+      <div class="modes">
+            <button class="mode-btn active" data-mode="odds"><b>✖️ 몇 배 모드</b><small>적게 나온 쪽일수록 배당이 커요</small></button>
+            <button class="mode-btn" data-mode="pot"><b>💰 뺏기 모드</b><small>맞힌 사람이 판돈을 다 가져가요</small></button>
+          </div>
+      <button id="newRound" class="primary big">새 판 시작</button>
+      <p class="hint" id="roomWait">방장이 판을 시작하길 기다리고 있어요.</p>
+      <button id="leave" class="ghost wide">나가기</button>
+    </aside>
+
+    <aside class="panel hidden" id="countPanel">
+      <h2>공개 중...</h2>
+      <p class="lead">이번 판 구성을 뽑고 있어요.</p>
+    </aside>
+
+    <aside class="panel hidden" id="betPanel">
+      <p class="mode-tag hidden" id="modeTag"></p>
+      <h2>이번 판 구성</h2>
+      <div class="lineup">
+        <div class="lineup-row rock"><span><i data-glyph="rock">✊</i> 바위</span><b id="lRock">0</b></div>
+        <div class="lineup-row paper"><span><i data-glyph="paper">✋</i> 보자기</span><b id="lPaper">0</b></div>
+        <div class="lineup-row scissors"><span><i data-glyph="scissors">✌️</i> 가위</span><b id="lScissors">0</b></div>
+      </div>
+
+      <h2>어디에 걸까? (여러 곳에 나눠 걸어도 돼요)</h2>
+      <div class="picks">
+        <button class="pick rock" data-type="rock"><i data-glyph="rock">✊</i><span>바위</span><em class="odds">x0</em><strong class="stake"></strong></button>
+        <button class="pick paper" data-type="paper"><i data-glyph="paper">✋</i><span>보자기</span><em class="odds">x0</em><strong class="stake"></strong></button>
+        <button class="pick scissors" data-type="scissors"><i data-glyph="scissors">✌️</i><span>가위</span><em class="odds">x0</em><strong class="stake"></strong></button>
+      </div>
+
+      <h2 id="amountTitle">위에서 걸 곳을 먼저 눌러요</h2>
+      <div class="bet">
+        <input type="number" id="betAmount" min="0" step="10">
+        <div class="quick">
+          <button class="ghost small" data-add="10">+10</button>
+          <button class="ghost small" data-add="100">+100</button>
+          <button class="ghost small" data-share="third">1/3</button>
+          <button class="ghost small" data-share="half">절반</button>
+          <button class="ghost small" data-share="all">올인</button>
+          <button class="ghost small" data-clear>0</button>
+        </div>
+      </div>
+      <p class="hint" id="hint"></p>
+      <div class="bet-actions">
+        <button id="watch" class="ghost">구경하기</button>
+        <button id="start" class="primary">배틀 시작!</button>
+      </div>
+      <div class="room-bets hidden" id="roomBets"></div>
+      <div class="record" id="record"></div>
+      <button class="ghost wide quit" data-quit>나가기</button>
+    </aside>
+
+    <aside class="panel hidden" id="livePanel">
+      <p class="mode-tag hidden" id="liveModeTag"></p>
+      <h2>배틀 진행 중</h2>
+      <p class="live-bet" id="liveBet"></p>
+      <div class="room-bets" id="liveBets"></div>
+      <div class="speed" id="speedRow">
+        <span>속도</span>
+        <button class="ghost small speed-btn active" data-speed="1">1x</button>
+        <button class="ghost small speed-btn" data-speed="2">2x</button>
+        <button class="ghost small speed-btn" data-speed="4">4x</button>
+      </div>
+      <label class="toggle"><input type="checkbox" id="sound" checked> 소리</label>
+      <button class="ghost wide quit" data-quit>나가기</button>
+    </aside>
+  </main>
+
+  <script src="vendor/peerjs.min.js"></script>
+  <script src="vendor/firebase-app-compat.js"></script>
+  <script src="vendor/firebase-auth-compat.js"></script>
+  <script src="vendor/firebase-database-compat.js"></script>
+  <script src="account.js"></script>
+  <script src="logic.js"></script>
+  <script src="net.js"></script>
+  <script src="game.js"></script>
+  <script src="economy.js"></script>
+</body>
+</html>
