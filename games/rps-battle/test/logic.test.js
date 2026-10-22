@@ -118,26 +118,22 @@ test("settlePot gives the whole pot to whoever backed the winner", () => {
   assert.equal(Object.values(odd).reduce((s, r) => s + r.returned, 0), 4);
 });
 
-test("stock prices are the same for the same moment and stay positive", () => {
-  assert.ok(RPS.STOCKS.length >= 30);
-  assert.equal(new Set(RPS.STOCKS.map((k) => k.id)).size, RPS.STOCKS.length);
-  const k = RPS.stockById("meme");
-  for (let t = 0; t < 5000; t++) assert.ok(RPS.stockPrice(k, t) >= 1);
-  assert.equal(RPS.stockPrice(k, 123456), RPS.stockPrice(k, 123456));
-  assert.equal(RPS.stockTick(10000), 2);
-});
-
-test("buying and selling stocks charges the 1% fee and tracks cost", () => {
-  const b = RPS.buyStock({ coins: 1000, stocks: {} }, "meme", 10, 50);
-  assert.deepEqual(b, { coins: 495, stocks: { meme: { qty: 10, cost: 505 } }, paid: 505 });
-  assert.match(RPS.buyStock({ coins: 100, stocks: {} }, "meme", 10, 50).error, /모자라요/);
-  const half = RPS.sellStock(b, "meme", 5, 100);
-  assert.equal(half.coins, 495 + 495);
-  assert.deepEqual(half.stocks.meme, { qty: 5, cost: 253 });
-  assert.deepEqual(RPS.sellStock(half, "meme", 5, 100).stocks, {});
-  assert.ok(RPS.sellStock(half, "meme", 6, 100).error);
-  assert.equal(RPS.maxBuy(1000, 99), 10);
-  assert.ok(RPS.buyStock({ coins: 1000, stocks: {} }, "meme", RPS.maxBuy(1000, 99), 99).coins >= 0);
+test("work ranks go up with right keys and pay more", () => {
+  assert.equal(RPS.RANKS[RPS.rankOf(0)].name, "인턴");
+  assert.equal(RPS.rankOf(49), 0);
+  assert.equal(RPS.rankOf(50), 1);
+  assert.equal(RPS.RANKS[RPS.rankOf(1e9)].name, "회장");
+  for (let i = 1; i < RPS.RANKS.length; i++) {
+    assert.ok(RPS.RANKS[i].need > RPS.RANKS[i - 1].need);
+    assert.ok(RPS.RANKS[i].pay > RPS.RANKS[i - 1].pay);
+  }
+  let prev = "A";
+  for (let i = 0; i < 200; i++) {
+    const l = RPS.nextLetter(prev);
+    assert.match(l, /^[A-Z]$/);
+    assert.notEqual(l, prev);
+    prev = l;
+  }
 });
 
 test("loans have a limit, grow 3% every 10 minutes and can be repaid", () => {
@@ -148,6 +144,6 @@ test("loans have a limit, grow 3% every 10 minutes and can be repaid", () => {
   assert.deepEqual(RPS.accrueDebt({ debt: 1000, debtAt: t0 }, t0 + 25 * 60 * 1000), { debt: 1061, debtAt: t0 + 20 * 60 * 1000 });
   assert.deepEqual(RPS.repay({ coins: 2000, debt: 1061 }, 5000), { coins: 939, debt: 0 });
   assert.ok(RPS.repay({ coins: 10, debt: 100 }, 100).error);
-  assert.equal(RPS.canGoBankrupt({ coins: 0, debt: 5000, stocks: {} }), true);
-  assert.equal(RPS.canGoBankrupt({ coins: 0, debt: 4000, stocks: {} }), false);
+  assert.equal(RPS.canGoBankrupt({ coins: 0, debt: 5000 }), true);
+  assert.equal(RPS.canGoBankrupt({ coins: 0, debt: 4000 }), false);
 });

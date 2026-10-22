@@ -41,51 +41,37 @@
   <main class="layout" id="layout">
     <nav class="sidebar" id="sidebar">
       <button class="nav-btn active" data-view="game"><i>🎮</i><span>게임</span></button>
-      <button class="nav-btn" data-view="stocks"><i>📈</i><span>주식</span></button>
+      <button class="nav-btn" data-view="work"><i>💼</i><span>일하기</span></button>
       <button class="nav-btn" data-view="bank"><i>🏦</i><span>대출</span></button>
       <button class="nav-btn" data-view="shop"><i>🛍️</i><span>상점</span></button>
     </nav>
 
-    <section class="view hidden" id="stocksView">
-      <div class="stock-side">
-        <div class="asset-grid" id="assetGrid"></div>
-        <input id="stockSearch" class="text-input" placeholder="🔍 종목 찾기" autocomplete="off">
-        <div class="stock-tabs">
-          <button class="ghost small active" data-filter="all">전체 종목</button>
-          <button class="ghost small" data-filter="mine">내 주식</button>
-        </div>
-        <div class="stock-list" id="stockList"></div>
-      </div>
-      <div class="stock-main">
-        <div class="stock-head">
-          <span class="stock-icon" id="sIcon"></span>
+    <section class="view hidden" id="workView">
+      <div class="work-card">
+        <div class="work-top">
           <div>
-            <h2 id="sName"></h2>
-            <div class="stock-price"><b id="sPrice"></b> <span id="sChange"></span></div>
+            <small>내 직급</small>
+            <h2 id="wRank"></h2>
+          </div>
+          <div class="work-pay">
+            <small>한 번 맞힐 때마다</small>
+            <b id="wPay"></b>
           </div>
         </div>
-        <div class="chart-wrap"><canvas id="stockChart"></canvas></div>
-        <div class="stock-range">
-          <button class="ghost small" data-range="60">5분</button>
-          <button class="ghost small active" data-range="360">30분</button>
-          <button class="ghost small" data-range="2160">3시간</button>
-          <button class="ghost small" data-range="17280">하루</button>
+        <div class="promo">
+          <div class="promo-bar"><div id="wBar"></div></div>
+          <small id="wNext"></small>
         </div>
-        <div class="stock-mine" id="sMine"></div>
-        <div class="trade">
-          <input id="tradeQty" class="text-input" type="number" min="1" value="1">
-          <button class="ghost small" data-qty="1">+1</button>
-          <button class="ghost small" data-qty="10">+10</button>
-          <button class="ghost small" data-qty="100">+100</button>
-          <button class="ghost small" data-qty="max">최대</button>
+        <div class="key-box" id="keyBox" tabindex="0">
+          <div class="key-cap" id="keyCap">?</div>
+          <p id="keyHint">화면에 나온 알파벳 키를 키보드에서 눌러요</p>
         </div>
-        <div class="trade-total" id="tradeTotal"></div>
-        <div class="trade-actions">
-          <button id="buyBtn" class="buy-btn">사기</button>
-          <button id="sellBtn" class="sell-btn">팔기</button>
-        </div>
-        <p class="hint" id="tradeMsg"></p>
-        <p class="fine">가격은 5초마다 바뀌고 모든 컴퓨터에서 똑같아요. 사고팔 때 수수료 1%가 붙어요. 진짜 주식이 아니라 게임 속 회사예요.</p>
+        <div class="work-stats" id="wStats"></div>
+      </div>
+      <div class="ranks-card">
+        <h2>직급표</h2>
+        <div class="ranks" id="rankList"></div>
+        <p class="fine">맞힌 횟수가 쌓이면 승진해요. 틀리면 잠깐 멈춰요. 키를 꾹 누르고 있는 건 안 쳐 줘요.</p>
       </div>
     </section>
 
@@ -108,7 +94,7 @@
         </div>
         <p class="hint" id="bankMsg"></p>
         <div class="bankrupt hidden" id="bankruptBox">
-          <p>코인도 주식도 없고 더 빌릴 수도 없어요. 파산 신청을 하면 빚이 없어지고 🪙 500으로 다시 시작해요. 파산 횟수는 기록에 남아요.</p>
+          <p>코인도 없고 더 빌릴 수도 없어요. 파산 신청을 하면 빚이 없어지고 🪙 500으로 다시 시작해요. 파산 횟수는 기록에 남아요.</p>
           <button id="bankrupt" class="sell-btn">파산 신청</button>
         </div>
       </div>

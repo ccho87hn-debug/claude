@@ -317,7 +317,7 @@ i[data-glyph] { font-style: normal; font-weight: 800; }
 .mode-tag { display: inline-block; margin: 0 0 10px; padding: 3px 10px; border-radius: 999px; background: #7c5cff33; color: var(--text); font-size: 13px; font-weight: 700; }
 .quit { margin-top: 14px; }
 
-/* ---------- Side menu, stocks and bank ---------- */
+/* ---------- Side menu, work and bank ---------- */
 .layout { grid-template-columns: 76px 1fr 340px; }
 .layout.alt-view > .arena-wrap, .layout.alt-view > aside.panel { display: none !important; }
 .view { grid-column: 2 / 4; }
@@ -329,42 +329,41 @@ i[data-glyph] { font-style: normal; font-weight: 800; }
 .nav-btn.active { background: #7c5cff33; color: var(--text); box-shadow: inset 0 0 0 2px var(--accent); }
 .debt-tag { font-size: 13px; color: var(--bad); background: #ff5d7322; padding: 2px 8px; border-radius: 999px; }
 
-#stocksView { display: grid; grid-template-columns: 360px 1fr; gap: 16px; }
-#stocksView.hidden { display: none; }
-.stock-side, .stock-main, .bank-card { background: var(--panel); border-radius: 16px; padding: 16px; }
-.stock-side { display: flex; flex-direction: column; gap: 10px; max-height: calc(100vh - 110px); }
+#workView { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+#workView.hidden { display: none; }
+.work-card, .ranks-card, .bank-card { background: var(--panel); border-radius: 16px; padding: 18px; }
 .asset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .asset { background: var(--panel-2); border-radius: 10px; padding: 8px 10px; }
 .asset small { display: block; color: var(--muted); font-size: 12px; }
 .asset b { font-size: 16px; }
 .asset.total { grid-column: 1 / 3; }
-.stock-tabs { display: flex; gap: 6px; }
-.stock-tabs .active, .stock-range .active { border-color: var(--accent); background: #7c5cff33; }
-.stock-list { overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 4px; }
-.stock-row { display: grid; grid-template-columns: 30px 1fr auto; gap: 8px; align-items: center; text-align: left; padding: 8px 10px; border-radius: 10px; border: 0; background: transparent; }
-.stock-row:hover { background: var(--panel-2); }
-.stock-row.active { background: var(--panel-2); box-shadow: inset 0 0 0 2px var(--accent); }
-.stock-row .ic { font-size: 22px; }
-.stock-row small { display: block; color: var(--muted); font-size: 12px; }
-.stock-row .px { text-align: right; font-weight: 700; }
-.up { color: #ff5a5a; }
-.down { color: #4c8dff; }
-.stock-head { display: flex; gap: 12px; align-items: center; }
-.stock-head h2 { margin: 0; font-size: 20px; }
-.stock-icon { font-size: 40px; }
-.stock-price b { font-size: 26px; }
-.chart-wrap { height: 300px; margin: 12px 0 8px; background: var(--panel-2); border-radius: 12px; }
-#stockChart { width: 100%; height: 100%; display: block; }
-.stock-range { display: flex; gap: 6px; }
-.stock-mine { margin: 12px 0; padding: 10px 12px; background: var(--panel-2); border-radius: 10px; font-size: 14px; line-height: 1.6; }
-.trade { display: flex; gap: 6px; align-items: center; }
-.trade input { width: 120px; }
-.trade-total { margin: 8px 0; color: var(--muted); font-size: 14px; }
-.trade-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.buy-btn, .sell-btn { border: 0; border-radius: 12px; padding: 14px; font-weight: 800; font-size: 17px; color: #fff; }
-.buy-btn { background: #e8484d; }
-.sell-btn { background: #3a72e8; }
-.fine { color: var(--muted); font-size: 12px; margin: 10px 0 0; }
+.down { color: var(--bad); }
+.fine { color: var(--muted); font-size: 12px; margin: 10px 0 0; line-height: 1.6; }
+.work-top { display: flex; justify-content: space-between; align-items: end; }
+.work-top small, .promo small { color: var(--muted); font-size: 13px; }
+.work-top h2 { margin: 2px 0 0; font-size: 30px; }
+.work-pay { text-align: right; }
+.work-pay b { display: block; font-size: 24px; color: var(--good); }
+.promo { margin: 14px 0 18px; }
+.promo-bar { height: 10px; background: var(--panel-2); border-radius: 999px; overflow: hidden; margin-bottom: 6px; }
+.promo-bar div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), #b49bff); transition: width .2s; }
+.key-box { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 340px; border-radius: 16px; background: var(--panel-2); outline: none; position: relative; overflow: hidden; }
+.key-box p { color: var(--muted); margin: 16px 0 0; }
+.key-cap { width: 170px; height: 170px; border-radius: 28px; display: grid; place-items: center; font-size: 110px; font-weight: 900; background: linear-gradient(#3a3f55, #2a2e3f); box-shadow: 0 10px 0 #15171f, 0 14px 30px #0008; transition: transform .06s; }
+.key-cap.hit { transform: translateY(6px); box-shadow: 0 4px 0 #15171f, 0 6px 16px #0008; background: linear-gradient(#2f8f5f, #23704a); }
+.key-cap.miss { animation: shake .3s; background: linear-gradient(#a33a48, #7c2a35); }
+@keyframes shake { 25% { transform: translateX(-10px); } 75% { transform: translateX(10px); } }
+.pop { position: absolute; font-weight: 800; color: var(--good); font-size: 22px; animation: rise .7s forwards; pointer-events: none; }
+@keyframes rise { to { transform: translateY(-50px); opacity: 0; } }
+.promo-flash { position: absolute; inset: 0; display: grid; place-items: center; font-size: 34px; font-weight: 900; background: #7c5cffcc; animation: fadeout 1.6s forwards; }
+@keyframes fadeout { 70% { opacity: 1; } to { opacity: 0; } }
+.work-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 12px; }
+.ranks-card h2 { margin-top: 0; }
+.ranks { display: flex; flex-direction: column; gap: 4px; }
+.rank-row { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; padding: 6px 10px; border-radius: 8px; font-size: 14px; color: var(--muted); }
+.rank-row b { color: var(--text); }
+.rank-row.done { opacity: .6; }
+.rank-row.now { background: #7c5cff33; box-shadow: inset 0 0 0 2px var(--accent); opacity: 1; }
 
 .bank-card { max-width: 620px; }
 .bank-title { margin-top: 0; font-size: 22px; }

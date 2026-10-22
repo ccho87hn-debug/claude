@@ -20,13 +20,20 @@ const ctx = canvas.getContext("2d");
 function loadSave() {
   try {
     const s = JSON.parse(localStorage.getItem("rpsBattle.save"));
-    if (s && Number.isInteger(s.coins)) return withSkins({ wins: 0, losses: 0, best: 0, ...s });
+    if (s && Number.isInteger(s.coins)) {
+      const out = withSkins({ wins: 0, losses: 0, best: 0, ...s });
+      if (s.stocks) localStorage.setItem("rpsBattle.save", JSON.stringify(out)); // keep the stock refund from repeating
+      return out;
+    }
   } catch {}
   return withSkins({ coins: START_COINS, wins: 0, losses: 0, best: 0 });
 }
 // Everyone owns the free skin; a skin that isn't owned can't stay equipped.
 function withSkins(s) {
-  s.stocks = s.stocks || {};
+  // Stocks were removed: whatever was invested comes back as coins.
+  for (const h of Object.values(s.stocks || {})) s.coins += Math.max(0, Math.round((h && h.cost) || 0));
+  delete s.stocks;
+  s.workDone = s.workDone || 0;
   s.debt = s.debt || 0;
   s.debtAt = s.debtAt || Date.now();
   s.bankrupt = s.bankrupt || 0;
@@ -471,8 +478,9 @@ function enterAccount(profile) {
     coins: Number.isInteger(profile.coins) ? profile.coins : 0,
     wins: profile.wins || 0, losses: profile.losses || 0, best: profile.best || 0,
     skins: profile.skins, skin: profile.skin,
-    stocks: profile.stocks, debt: profile.debt, debtAt: profile.debtAt, bankrupt: profile.bankrupt,
+    stocks: profile.stocks, workDone: profile.workDone, debt: profile.debt, debtAt: profile.debtAt, bankrupt: profile.bankrupt,
   });
+  if (profile.stocks) persist(); // keep the stock refund from repeating
   $("authPass").value = $("authPass2").value = "";
   $("authScreen").classList.add("hidden");
   buildSprites();

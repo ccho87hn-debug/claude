@@ -1,15 +1,14 @@
-// The side menu and the money outside the arena: the stock market and the bank.
+// The side menu and the money outside the arena: working for coins and the bank.
 // Uses the wallet (`save`, `persist`, `refreshWallet`) and round state from game.js.
 (function () {
-  const { STOCKS, stockById, stockPrice, stockTick, buyStock, sellStock, maxBuy, TRADE_FEE, LOAN_LIMIT, LOAN_PERIOD_MS, accrueDebt, borrow, repay, canGoBankrupt } = window.RPS;
+  const { RANKS, rankOf, nextLetter, LOAN_LIMIT, LOAN_PERIOD_MS, accrueDebt, borrow, repay, canGoBankrupt } = window.RPS;
   const fmt = (n) => Math.round(n).toLocaleString();
-  const HOUR = 720; // ticks in an hour
+  const MISS_PAUSE_MS = 500;
 
   let view = "game";
-  let picked = STOCKS[0].id;
-  let filter = "all";
-  let range = 360;
-  let lastTick = -1;
+  let letter = nextLetter("");
+  let pausedUntil = 0;
+  let session = { hits: 0, misses: 0, earned: 0 };
 
   // ---------- Menu ----------
   function inRound() {
@@ -20,13 +19,13 @@
     if (v !== "game" && room) return; // the room keeps you in the game; leave it first
     if (v !== "game" && inRound()) quitRound(); // walking away from a solo round
     view = v;
-    $("layout").classList.toggle("alt-view", v === "stocks" || v === "bank");
-    $("stocksView").classList.toggle("hidden", v !== "stocks");
+    $("layout").classList.toggle("alt-view", v === "work" || v === "bank");
+    $("workView").classList.toggle("hidden", v !== "work");
     $("bankView").classList.toggle("hidden", v !== "bank");
     if (v === "shop") openShop();
     else if (v === "game" && !room && !inRound()) showLobby();
-    if (v !== "stocks" && v !== "bank") resize(); // the arena may have been hidden while the window changed size
-    if (v === "stocks") renderStocks(true);
+    if (v !== "work" && v !== "bank") resize(); // the arena may have been hidden while the window changed size
+    if (v === "work") { renderWork(); $("keyBox").focus(); }
     if (v === "bank") renderBank();
     refreshNav();
   }
@@ -40,142 +39,93 @@
     });
   }
 
-  // ---------- Assets ----------
-  function holdingsValue(tick) {
-    let v = 0;
-    for (const [id, h] of Object.entries(save.stocks || {})) {
-      const k = stockById(id);
-      if (k) v += h.qty * stockPrice(k, tick);
-    }
-    return v;
+  // ---------- Work ----------
+  function renderWork() {
+    const done = save.workDone || 0;
+    const r = rankOf(done);
+    const rank = RANKS[r], next = RANKS[r + 1];
+    $("wRank").textContent = rank.name;
+    $("wPay").textContent = `🪙 ${fmt(rank.pay)}`;
+    $("wBar").style.width = next ? `${((done - rank.need) / (next.need - rank.need)) * 100}%` : "100%";
+    $("wNext").textContent = next ? `${next.name}까지 ${fmt(next.need - done)}번 더 맞히면 승진 (지금까지 ${fmt(done)}번)` : `최고 직급이에요! (지금까지 ${fmt(done)}번)`;
+    $("keyCap").textContent = letter;
+    const tile = (label, value) => el("div", { className: "asset" }, el("small", { textContent: label }), el("b", { textContent: value }));
+    $("wStats").replaceChildren(tile("이번에 번 돈", `🪙 ${fmt(session.earned)}`), tile("맞힘", fmt(session.hits)), tile("틀림", fmt(session.misses)));
+    $("rankList").replaceChildren(...RANKS.map((k, i) => el("div", { className: "rank-row" + (i === r ? " now" : i < r ? " done" : "") },
+      el("b", { textContent: k.name }), el("span", { textContent: `${fmt(k.need)}번` }), el("span", { textContent: `🪙 ${k.pay}` }))));
   }
 
-  function assetTiles(tick) {
-    const stocks = holdingsValue(tick);
-    const total = save.coins + stocks - save.debt;
+  // "사원으로", "부장으로", "이사로": picks 로/으로 by the last syllable.
+  function withRo(word) {
+    const code = word.charCodeAt(word.length - 1) - 0xac00;
+    const tail = code >= 0 && code < 11172 ? code % 28 : 0;
+    return word + (tail === 0 || tail === 8 ? "로" : "으로");
+  }
+
+  function flashKey(cls) {
+    const cap = $("keyCap");
+    cap.classList.remove("hit", "miss");
+    void cap.offsetWidth; // restart the animation
+    cap.classList.add(cls);
+    setTimeout(() => cap.classList.remove(cls), cls === "hit" ? 90 : 320);
+  }
+
+  function popText(text) {
+    const box = $("keyBox");
+    const p = el("div", { className: "pop", textContent: text });
+    p.style.left = 40 + Math.random() * (box.clientWidth - 120) + "px";
+    p.style.top = 60 + Math.random() * 80 + "px";
+    box.append(p);
+    setTimeout(() => p.remove(), 700);
+  }
+
+  // Saving after every key press would hammer the account, so work is saved a moment later in one go.
+  let savePending = false;
+  setInterval(() => { if (savePending) { savePending = false; persist(); } }, 2000);
+
+  function onWorkKey(e) {
+    if (view !== "work" || e.ctrlKey || e.altKey || e.metaKey) return;
+    if (!/^[a-zA-Z]$/.test(e.key)) return;
+    e.preventDefault();
+    if (e.repeat || performance.now() < pausedUntil) return; // holding a key down doesn't count
+    if (e.key.toUpperCase() !== letter) {
+      session.misses++;
+      pausedUntil = performance.now() + MISS_PAUSE_MS;
+      $("keyHint").textContent = `틀렸어요! ${letter} 키를 눌러야 해요`;
+      flashKey("miss");
+      beep(200, 0.15, "sawtooth");
+      renderWork();
+      return;
+    }
+    const before = rankOf(save.workDone || 0);
+    const pay = RANKS[before].pay;
+    save.workDone = (save.workDone || 0) + 1;
+    save.coins += pay;
+    session.hits++;
+    session.earned += pay;
+    letter = nextLetter(letter);
+    $("keyHint").textContent = "화면에 나온 알파벳 키를 키보드에서 눌러요";
+    flashKey("hit");
+    popText(`+🪙 ${pay}`);
+    beep(700 + Math.random() * 200, 0.05, "square");
+    const after = rankOf(save.workDone);
+    if (after > before) {
+      const f = el("div", { className: "promo-flash", textContent: `🎉 ${withRo(RANKS[after].name)} 승진!` });
+      $("keyBox").append(f);
+      setTimeout(() => f.remove(), 1600);
+      beep(990, 0.3, "triangle");
+    }
+    savePending = true;
+    refreshWallet();
+    renderWork();
+  }
+
+  function assetTiles() {
     const tile = (label, value, cls = "") => el("div", { className: "asset " + cls }, el("small", { textContent: label }), el("b", { textContent: value }));
     return [
       tile("코인", `🪙 ${fmt(save.coins)}`),
-      tile("주식", `🪙 ${fmt(stocks)}`),
       tile("빚", save.debt ? `-🪙 ${fmt(save.debt)}` : "없음", save.debt ? "down" : ""),
-      tile("총 재산 (코인 + 주식 - 빚)", `🪙 ${fmt(total)}`, "total"),
     ];
-  }
-
-  // ---------- Stocks ----------
-  function changeText(now, before) {
-    const pct = ((now - before) / before) * 100;
-    const cls = pct > 0 ? "up" : pct < 0 ? "down" : "";
-    const arrow = pct > 0 ? "▲" : pct < 0 ? "▼" : "-";
-    return { cls, text: `${arrow} ${Math.abs(pct).toFixed(2)}%` };
-  }
-
-  function renderStocks(full = false) {
-    const tick = stockTick();
-    lastTick = tick;
-    $("assetGrid").replaceChildren(...assetTiles(tick));
-
-    const q = $("stockSearch").value.trim();
-    const rows = STOCKS.filter((k) => (filter === "all" || (save.stocks[k.id] && save.stocks[k.id].qty)) && (!q || k.name.includes(q)));
-    $("stockList").replaceChildren(...(rows.length ? rows.map((k) => {
-      const p = stockPrice(k, tick);
-      const c = changeText(p, stockPrice(k, tick - HOUR));
-      const own = save.stocks[k.id];
-      return el("button", { className: "stock-row" + (k.id === picked ? " active" : ""), onclick: () => { picked = k.id; $("tradeMsg").textContent = ""; renderStocks(true); } },
-        el("span", { className: "ic", textContent: k.icon }),
-        el("span", {}, el("b", { textContent: k.name }), el("small", { textContent: own ? `${fmt(own.qty)}주 가지고 있음` : "" })),
-        el("span", { className: "px" }, el("span", { textContent: `🪙 ${fmt(p)}` }), el("small", { className: c.cls, textContent: c.text })));
-    }) : [el("p", { className: "hint", textContent: filter === "mine" ? "아직 가진 주식이 없어요." : "그런 종목이 없어요." })]));
-
-    const k = stockById(picked);
-    const p = stockPrice(k, tick);
-    const c = changeText(p, stockPrice(k, tick - HOUR));
-    $("sIcon").textContent = k.icon;
-    $("sName").textContent = k.name;
-    $("sPrice").textContent = `🪙 ${fmt(p)}`;
-    $("sChange").className = c.cls;
-    $("sChange").textContent = `${c.text} (1시간 전보다)`;
-    const own = save.stocks[picked];
-    if (own) {
-      const value = own.qty * p;
-      const gain = value - own.cost;
-      $("sMine").innerHTML = `가진 주식 <b>${fmt(own.qty)}주</b> · 지금 가치 🪙 ${fmt(value)}<br>산 값 🪙 ${fmt(own.cost)} · <span class="${gain >= 0 ? "up" : "down"}">${gain >= 0 ? "+" : "-"}🪙 ${fmt(Math.abs(gain))} (${own.cost ? ((gain / own.cost) * 100).toFixed(1) : 0}%)</span>`;
-    } else {
-      $("sMine").textContent = "아직 이 주식은 없어요.";
-    }
-    refreshTradeTotal(p);
-    drawChart(k, tick);
-    if (full) $("stockList").querySelector(".active")?.scrollIntoView({ block: "nearest" });
-  }
-
-  function tradeQty() {
-    return Math.max(0, Math.floor(+$("tradeQty").value || 0));
-  }
-
-  function refreshTradeTotal(price) {
-    const n = tradeQty();
-    const fee = Math.ceil(n * price * TRADE_FEE);
-    $("tradeTotal").textContent = n ? `${fmt(n)}주 · 살 때 🪙 ${fmt(n * price + fee)} / 팔 때 🪙 ${fmt(n * price - fee)} 받음 (수수료 ${fmt(fee)})` : "";
-  }
-
-  function drawChart(k, tick) {
-    const cv = $("stockChart");
-    const dpr = window.devicePixelRatio || 1;
-    const w = cv.clientWidth, h = cv.clientHeight;
-    if (!w || !h) return;
-    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
-    const g = cv.getContext("2d");
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.clearRect(0, 0, w, h);
-    const n = 240; // points drawn, whatever the range
-    const step = Math.max(1, Math.round(range / n));
-    const pts = [];
-    for (let i = n; i >= 0; i--) pts.push(stockPrice(k, tick - i * step));
-    const lo = Math.min(...pts), hi = Math.max(...pts);
-    const pad = 16;
-    const x = (i) => pad + (i / n) * (w - pad * 2 - 56);
-    const y = (p) => pad + (1 - (p - lo) / (hi - lo || 1)) * (h - pad * 2);
-    const up = pts[pts.length - 1] >= pts[0];
-    const color = up ? "#ff5a5a" : "#4c8dff";
-    // grid + labels
-    g.strokeStyle = "#ffffff12";
-    g.fillStyle = "#9aa0b4";
-    g.font = "12px Pretendard, sans-serif";
-    g.textAlign = "left";
-    for (let i = 0; i <= 4; i++) {
-      const p = lo + ((hi - lo) * i) / 4;
-      g.beginPath(); g.moveTo(pad, y(p)); g.lineTo(w - 56, y(p)); g.stroke();
-      g.fillText(fmt(p), w - 50, y(p) + 4);
-    }
-    // area + line
-    const grad = g.createLinearGradient(0, pad, 0, h);
-    grad.addColorStop(0, up ? "#ff5a5a44" : "#4c8dff44");
-    grad.addColorStop(1, "#00000000");
-    g.beginPath();
-    pts.forEach((p, i) => (i ? g.lineTo(x(i), y(p)) : g.moveTo(x(i), y(p))));
-    g.lineTo(x(n), h - pad); g.lineTo(x(0), h - pad); g.closePath();
-    g.fillStyle = grad; g.fill();
-    g.beginPath();
-    pts.forEach((p, i) => (i ? g.lineTo(x(i), y(p)) : g.moveTo(x(i), y(p))));
-    g.strokeStyle = color; g.lineWidth = 2; g.stroke();
-    g.beginPath(); g.arc(x(n), y(pts[n]), 4, 0, Math.PI * 2); g.fillStyle = color; g.fill();
-  }
-
-  function trade(kind) {
-    const k = stockById(picked);
-    const price = stockPrice(k, stockTick());
-    const n = tradeQty();
-    const r = kind === "buy" ? buyStock(save, picked, n, price) : sellStock(save, picked, n, price);
-    const msg = $("tradeMsg");
-    if (r.error) { msg.className = "hint warn"; msg.textContent = r.error; return; }
-    save.coins = r.coins;
-    save.stocks = r.stocks;
-    persist();
-    refreshWallet();
-    msg.className = "hint";
-    msg.textContent = kind === "buy" ? `${k.name} ${fmt(n)}주를 🪙 ${fmt(r.paid)}에 샀어요.` : `${k.name} ${fmt(n)}주를 팔아서 🪙 ${fmt(r.got)}을 받았어요.`;
-    beep(kind === "buy" ? 660 : 520, 0.12, "triangle");
-    renderStocks();
   }
 
   // ---------- Bank ----------
@@ -191,11 +141,11 @@
 
   function renderBank() {
     catchUpDebt();
-    const tiles = assetTiles(stockTick());
+    const tiles = assetTiles();
     const left = LOAN_LIMIT - save.debt;
     const next = save.debt ? Math.max(0, save.debtAt + LOAN_PERIOD_MS - Date.now()) : 0;
     const mm = Math.floor(next / 60000), ss = Math.floor((next % 60000) / 1000);
-    tiles.splice(3, 0,
+    tiles.push(
       el("div", { className: "asset" }, el("small", { textContent: "더 빌릴 수 있는 돈" }), el("b", { textContent: `🪙 ${fmt(left)}` })),
       el("div", { className: "asset" }, el("small", { textContent: "다음 이자까지" }), el("b", { textContent: save.debt ? `${mm}분 ${String(ss).padStart(2, "0")}초` : "-" })));
     $("bankGrid").replaceChildren(...tiles);
@@ -227,7 +177,6 @@
     if (!canGoBankrupt(save)) return;
     save.coins = 500;
     save.debt = 0;
-    save.stocks = {};
     save.bankrupt = (save.bankrupt || 0) + 1;
     persist();
     refreshWallet();
@@ -240,34 +189,14 @@
   document.querySelectorAll(".nav-btn").forEach((b) => b.addEventListener("click", () => showView(b.dataset.view)));
   $("closeShop").addEventListener("click", () => { view = "game"; refreshNav(); });
   $("solo").addEventListener("click", () => { view = "game"; refreshNav(); });
-  $("stockSearch").addEventListener("input", () => renderStocks());
-  document.querySelectorAll("[data-filter]").forEach((b) => b.addEventListener("click", () => {
-    filter = b.dataset.filter;
-    document.querySelectorAll("[data-filter]").forEach((x) => x.classList.toggle("active", x === b));
-    renderStocks();
-  }));
-  document.querySelectorAll("[data-range]").forEach((b) => b.addEventListener("click", () => {
-    range = +b.dataset.range;
-    document.querySelectorAll("[data-range]").forEach((x) => x.classList.toggle("active", x === b));
-    renderStocks();
-  }));
-  document.querySelectorAll("[data-qty]").forEach((b) => b.addEventListener("click", () => {
-    const price = stockPrice(stockById(picked), stockTick());
-    $("tradeQty").value = b.dataset.qty === "max" ? Math.max(1, maxBuy(save.coins, price)) : tradeQty() + +b.dataset.qty;
-    refreshTradeTotal(price);
-  }));
-  $("tradeQty").addEventListener("input", () => refreshTradeTotal(stockPrice(stockById(picked), stockTick())));
-  $("buyBtn").addEventListener("click", () => trade("buy"));
-  $("sellBtn").addEventListener("click", () => trade("sell"));
+  document.addEventListener("keydown", onWorkKey);
   document.querySelectorAll("[data-borrow]").forEach((b) => b.addEventListener("click", () => bank("borrow", b.dataset.borrow)));
   document.querySelectorAll("[data-repay]").forEach((b) => b.addEventListener("click", () => bank("repay", b.dataset.repay)));
   $("bankrupt").addEventListener("click", goBankrupt);
-  window.addEventListener("resize", () => { if (view === "stocks") renderStocks(); });
 
   setInterval(() => {
     catchUpDebt();
     refreshNav();
-    if (view === "stocks" && stockTick() !== lastTick) renderStocks();
     if (view === "bank") renderBank();
   }, 1000);
   refreshNav();
