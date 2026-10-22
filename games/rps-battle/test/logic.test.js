@@ -117,3 +117,37 @@ test("settlePot gives the whole pot to whoever backed the winner", () => {
   const odd = RPS.settlePot({ a: { rock: 1, paper: 0, scissors: 0 }, b: { rock: 1, paper: 0, scissors: 0 }, c: { rock: 0, paper: 1, scissors: 0 }, d: { rock: 1, paper: 0, scissors: 0 } }, "rock");
   assert.equal(Object.values(odd).reduce((s, r) => s + r.returned, 0), 4);
 });
+
+test("stock prices are the same for the same moment and stay positive", () => {
+  assert.ok(RPS.STOCKS.length >= 30);
+  assert.equal(new Set(RPS.STOCKS.map((k) => k.id)).size, RPS.STOCKS.length);
+  const k = RPS.stockById("meme");
+  for (let t = 0; t < 5000; t++) assert.ok(RPS.stockPrice(k, t) >= 1);
+  assert.equal(RPS.stockPrice(k, 123456), RPS.stockPrice(k, 123456));
+  assert.equal(RPS.stockTick(10000), 2);
+});
+
+test("buying and selling stocks charges the 1% fee and tracks cost", () => {
+  const b = RPS.buyStock({ coins: 1000, stocks: {} }, "meme", 10, 50);
+  assert.deepEqual(b, { coins: 495, stocks: { meme: { qty: 10, cost: 505 } }, paid: 505 });
+  assert.match(RPS.buyStock({ coins: 100, stocks: {} }, "meme", 10, 50).error, /모자라요/);
+  const half = RPS.sellStock(b, "meme", 5, 100);
+  assert.equal(half.coins, 495 + 495);
+  assert.deepEqual(half.stocks.meme, { qty: 5, cost: 253 });
+  assert.deepEqual(RPS.sellStock(half, "meme", 5, 100).stocks, {});
+  assert.ok(RPS.sellStock(half, "meme", 6, 100).error);
+  assert.equal(RPS.maxBuy(1000, 99), 10);
+  assert.ok(RPS.buyStock({ coins: 1000, stocks: {} }, "meme", RPS.maxBuy(1000, 99), 99).coins >= 0);
+});
+
+test("loans have a limit, grow 3% every 10 minutes and can be repaid", () => {
+  assert.deepEqual(RPS.borrow({ coins: 0, debt: 0 }, 1000), { coins: 1000, debt: 1000 });
+  assert.ok(RPS.borrow({ coins: 0, debt: 4500 }, 1000).error);
+  const t0 = 1_000_000;
+  assert.deepEqual(RPS.accrueDebt({ debt: 1000, debtAt: t0 }, t0 + 5 * 60 * 1000), { debt: 1000, debtAt: t0 });
+  assert.deepEqual(RPS.accrueDebt({ debt: 1000, debtAt: t0 }, t0 + 25 * 60 * 1000), { debt: 1061, debtAt: t0 + 20 * 60 * 1000 });
+  assert.deepEqual(RPS.repay({ coins: 2000, debt: 1061 }, 5000), { coins: 939, debt: 0 });
+  assert.ok(RPS.repay({ coins: 10, debt: 100 }, 100).error);
+  assert.equal(RPS.canGoBankrupt({ coins: 0, debt: 5000, stocks: {} }), true);
+  assert.equal(RPS.canGoBankrupt({ coins: 0, debt: 4000, stocks: {} }), false);
+});

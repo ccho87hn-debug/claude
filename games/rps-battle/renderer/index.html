@@ -34,11 +34,86 @@
     <div class="wallet">
       <span class="coin-icon">🪙</span>
       <span id="coins">0</span>
-      <button id="bailout" class="ghost hidden" title="코인이 다 떨어졌을 때 받을 수 있어요">지원금 받기</button>
+      <span id="debtTag" class="debt-tag hidden"></span>
     </div>
   </header>
 
-  <main class="layout">
+  <main class="layout" id="layout">
+    <nav class="sidebar" id="sidebar">
+      <button class="nav-btn active" data-view="game"><i>🎮</i><span>게임</span></button>
+      <button class="nav-btn" data-view="stocks"><i>📈</i><span>주식</span></button>
+      <button class="nav-btn" data-view="bank"><i>🏦</i><span>대출</span></button>
+      <button class="nav-btn" data-view="shop"><i>🛍️</i><span>상점</span></button>
+    </nav>
+
+    <section class="view hidden" id="stocksView">
+      <div class="stock-side">
+        <div class="asset-grid" id="assetGrid"></div>
+        <input id="stockSearch" class="text-input" placeholder="🔍 종목 찾기" autocomplete="off">
+        <div class="stock-tabs">
+          <button class="ghost small active" data-filter="all">전체 종목</button>
+          <button class="ghost small" data-filter="mine">내 주식</button>
+        </div>
+        <div class="stock-list" id="stockList"></div>
+      </div>
+      <div class="stock-main">
+        <div class="stock-head">
+          <span class="stock-icon" id="sIcon"></span>
+          <div>
+            <h2 id="sName"></h2>
+            <div class="stock-price"><b id="sPrice"></b> <span id="sChange"></span></div>
+          </div>
+        </div>
+        <div class="chart-wrap"><canvas id="stockChart"></canvas></div>
+        <div class="stock-range">
+          <button class="ghost small" data-range="60">5분</button>
+          <button class="ghost small active" data-range="360">30분</button>
+          <button class="ghost small" data-range="2160">3시간</button>
+          <button class="ghost small" data-range="17280">하루</button>
+        </div>
+        <div class="stock-mine" id="sMine"></div>
+        <div class="trade">
+          <input id="tradeQty" class="text-input" type="number" min="1" value="1">
+          <button class="ghost small" data-qty="1">+1</button>
+          <button class="ghost small" data-qty="10">+10</button>
+          <button class="ghost small" data-qty="100">+100</button>
+          <button class="ghost small" data-qty="max">최대</button>
+        </div>
+        <div class="trade-total" id="tradeTotal"></div>
+        <div class="trade-actions">
+          <button id="buyBtn" class="buy-btn">사기</button>
+          <button id="sellBtn" class="sell-btn">팔기</button>
+        </div>
+        <p class="hint" id="tradeMsg"></p>
+        <p class="fine">가격은 5초마다 바뀌고 모든 컴퓨터에서 똑같아요. 사고팔 때 수수료 1%가 붙어요. 진짜 주식이 아니라 게임 속 회사예요.</p>
+      </div>
+    </section>
+
+    <section class="view hidden" id="bankView">
+      <div class="bank-card">
+        <h2 class="bank-title">🏦 코인은행 대출</h2>
+        <div class="asset-grid" id="bankGrid"></div>
+        <p class="lead">코인이 모자라면 은행에서 빌려요. 최대 🪙 5,000까지 빌릴 수 있고, 빚은 10분마다 3%씩 늘어나요. 앱을 꺼 둬도 이자는 붙어요.</p>
+        <h3>빌리기</h3>
+        <div class="bank-row">
+          <button class="ghost" data-borrow="500">+500</button>
+          <button class="ghost" data-borrow="1000">+1,000</button>
+          <button class="ghost" data-borrow="max">최대한</button>
+        </div>
+        <h3>갚기</h3>
+        <div class="bank-row">
+          <button class="ghost" data-repay="500">500 갚기</button>
+          <button class="ghost" data-repay="1000">1,000 갚기</button>
+          <button class="primary" data-repay="all">전부 갚기</button>
+        </div>
+        <p class="hint" id="bankMsg"></p>
+        <div class="bankrupt hidden" id="bankruptBox">
+          <p>코인도 주식도 없고 더 빌릴 수도 없어요. 파산 신청을 하면 빚이 없어지고 🪙 500으로 다시 시작해요. 파산 횟수는 기록에 남아요.</p>
+          <button id="bankrupt" class="sell-btn">파산 신청</button>
+        </div>
+      </div>
+    </section>
+
     <section class="arena-wrap">
       <canvas id="arena"></canvas>
       <div id="hud" class="hud">
@@ -77,7 +152,6 @@
         <input id="myName" class="text-input" maxlength="8" autocomplete="off">
       </div>
 
-      <button id="openShop" class="ghost wide shop-btn">🛍️ 스킨 상점</button>
 
       <h2>혼자 하기</h2>
       <button id="solo" class="primary big">혼자 하기</button>
@@ -190,5 +264,6 @@
   <script src="logic.js"></script>
   <script src="net.js"></script>
   <script src="game.js"></script>
+  <script src="economy.js"></script>
 </body>
 </html>

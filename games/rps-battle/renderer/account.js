@@ -121,10 +121,10 @@
 
   // Saves coins and record. Writes are queued so a quick burst of saves lands in order.
   let pending = Promise.resolve();
-  function save({ coins, wins, losses, best, skins, skin }) {
+  function save({ coins, wins, losses, best, skins, skin, stocks, debt, debtAt, bankrupt }) {
     if (!uid) return pending;
     const ref = userRef();
-    pending = pending.then(() => ref.update({ coins, wins, losses, best, skins: skins || { classic: true }, skin: skin || "classic" })).catch((e) => console.error("save failed", e));
+    pending = pending.then(() => ref.update({ coins, wins, losses, best, skins: skins || { classic: true }, skin: skin || "classic", stocks: stocks || {}, debt: debt || 0, debtAt: debtAt || 0, bankrupt: bankrupt || 0 })).catch((e) => console.error("save failed", e));
     return pending;
   }
 

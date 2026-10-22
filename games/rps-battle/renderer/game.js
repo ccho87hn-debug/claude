@@ -10,7 +10,6 @@ const STEER = 160;
 const SUDDEN_DEATH_AT = 60; // seconds; after this, everyone speeds up so a round always ends
 const COLORS = { rock: "#ff5a4e", paper: "#3d9bff", scissors: "#3fd46f" };
 const START_COINS = 1000;
-const BAILOUT = 500;
 const SNAP_EVERY = 50; // ms between position updates the host sends to guests
 
 const $ = (id) => document.getElementById(id);
@@ -27,6 +26,10 @@ function loadSave() {
 }
 // Everyone owns the free skin; a skin that isn't owned can't stay equipped.
 function withSkins(s) {
+  s.stocks = s.stocks || {};
+  s.debt = s.debt || 0;
+  s.debtAt = s.debtAt || Date.now();
+  s.bankrupt = s.bankrupt || 0;
   s.skins = { ...(s.skins || {}), classic: true };
   if (!s.skins[s.skin]) s.skin = "classic";
   return s;
@@ -258,7 +261,8 @@ function refreshBet() {
 
 function refreshWallet() {
   $("coins").textContent = save.coins.toLocaleString();
-  $("bailout").classList.toggle("hidden", !(save.coins < 10 && phase !== "running" && phase !== "countdown"));
+  $("debtTag").textContent = `빚 🪙 ${save.debt.toLocaleString()}`;
+  $("debtTag").classList.toggle("hidden", !save.debt);
   $("betAmount").max = save.coins;
   const total = save.wins + save.losses;
   $("record").innerHTML = total
@@ -467,6 +471,7 @@ function enterAccount(profile) {
     coins: Number.isInteger(profile.coins) ? profile.coins : 0,
     wins: profile.wins || 0, losses: profile.losses || 0, best: profile.best || 0,
     skins: profile.skins, skin: profile.skin,
+    stocks: profile.stocks, debt: profile.debt, debtAt: profile.debtAt, bankrupt: profile.bankrupt,
   });
   $("authPass").value = $("authPass2").value = "";
   $("authScreen").classList.add("hidden");
@@ -655,7 +660,12 @@ async function joinRoom() {
   refreshRoom();
 }
 
-// `forfeit`: a guest who walks out mid-battle leaves their bet in the round; otherwise an unfinished round is refunded.
+// Leaving mid-battle forfeits the bet (only the host's leaving cancels the round for everyone).
+function quitRound() {
+  leaveRoom("", phase === "running" && mode !== "host");
+}
+
+// `forfeit`: a player who walks out mid-battle leaves their bet in the round; otherwise an unfinished round is refunded.
 function leaveRoom(why = "", forfeit = false) {
   if (staked && phase !== "done" && !forfeit) {
     save.coins += staked; // the round never finished, so the bet comes back
@@ -926,6 +936,7 @@ function buildFloor(scale) {
 
 function resize() {
   const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return; // the arena is hidden behind another menu
   const dpr = window.devicePixelRatio || 1;
   canvas.width = Math.max(1, Math.round(rect.width * dpr));
   canvas.height = Math.max(1, Math.round(rect.height * dpr));
@@ -1110,7 +1121,6 @@ $("noLogin").addEventListener("click", () => {
   buildSprites();
   showLobby();
 });
-$("openShop").addEventListener("click", openShop);
 $("closeShop").addEventListener("click", showLobby);
 $("logOut").addEventListener("click", logOut);
 $("solo").addEventListener("click", playSolo);
@@ -1123,14 +1133,8 @@ $("start").addEventListener("click", onStartClick);
 $("again").addEventListener("click", newRound);
 $("leave").addEventListener("click", () => leaveRoom());
 $("leave2").addEventListener("click", () => leaveRoom());
-document.querySelectorAll("[data-quit]").forEach((b) => b.addEventListener("click", () => leaveRoom("", mode === "guest" && phase === "running")));
+document.querySelectorAll("[data-quit]").forEach((b) => b.addEventListener("click", quitRound));
 document.querySelectorAll(".mode-btn").forEach((b) => b.addEventListener("click", () => setBetMode(b.dataset.mode)));
-$("bailout").addEventListener("click", () => {
-  save.coins += BAILOUT;
-  persist();
-  refreshWallet();
-  refreshBet();
-});
 document.querySelectorAll(".speed-btn").forEach((b) =>
   b.addEventListener("click", () => {
     speed = +b.dataset.speed;
