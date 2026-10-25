@@ -48,6 +48,12 @@
       "sourceType": "github",
       "skillPath": "skills/slideshow/SKILL.md",
       "computedHash": "2cce5d13b634a742a25e62a1d78366ee97d0bf51a708eb4746e44a0579a3b6a7"
+    },
+    "watch": {
+      "source": "bradautomates/claude-video",
+      "sourceType": "github",
+      "skillPath": "skills/watch/SKILL.md",
+      "computedHash": "cbdb39fea0f90a361e72307a189dab8b1c0bbd7cc2225bb33784ac882b32953c"
     }
   }
 }
